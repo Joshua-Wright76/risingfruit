@@ -25,6 +25,19 @@
   --color-accent-800: #9a3412;
   --color-accent-900: #7c2d12;
 
+  /* Dark theme surfaces */
+  --color-surface-950: #0a0a0a;
+  --color-surface-900: #171717;
+  --color-surface-800: #262626;
+  --color-surface-700: #404040;
+  --color-surface-600: #525252;
+  --color-surface-500: #737373;
+  --color-surface-400: #a3a3a3;
+  --color-surface-300: #d4d4d4;
+  --color-surface-200: #e5e5e5;
+  --color-surface-100: #f5f5f5;
+  --color-surface-50: #fafafa;
+
   /* Typography */
   --font-sans: 'DM Sans', system-ui, sans-serif;
 }
@@ -40,14 +53,60 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-surface-950);
+  color: var(--color-surface-50);
 }
 
-/* Mapbox overrides for proper z-indexing */
+/* Mapbox control overrides for dark theme */
 .mapboxgl-ctrl-group {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+  background: var(--color-surface-900) !important;
+  border: 1px solid var(--color-surface-700) !important;
+  box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.4) !important;
+}
+
+.mapboxgl-ctrl-group button {
+  background-color: transparent !important;
+}
+
+.mapboxgl-ctrl-group button + button {
+  border-top: 1px solid var(--color-surface-700) !important;
+}
+
+.mapboxgl-ctrl-icon {
+  filter: invert(1) !important;
 }
 
 .mapboxgl-ctrl-geolocate {
   width: 44px !important;
   height: 44px !important;
+}
+
+.mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon {
+  filter: invert(0) sepia(1) saturate(5) hue-rotate(90deg) !important;
+}
+
+/* Loading skeleton animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-800) 25%,
+    var(--color-surface-700) 50%,
+    var(--color-surface-800) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Smooth transitions for interactive elements */
+.transition-surface {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
