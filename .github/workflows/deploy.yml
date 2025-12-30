@@ -32,6 +32,40 @@ jobs:
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
             "echo 'SSH connection successful'"
 
+      - name: Install Docker on EC2 (if needed)
+        run: |
+          ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            # Check if Docker is installed
+            if ! command -v docker &> /dev/null; then
+              echo "Installing Docker..."
+              sudo yum update -y
+              sudo yum install -y docker
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker $USER
+              echo "Docker installed successfully"
+            else
+              echo "Docker already installed"
+            fi
+            
+            # Ensure Docker is running
+            sudo systemctl start docker
+            
+            # Install Docker Compose plugin (if not present)
+            if ! docker compose version &> /dev/null; then
+              echo "Installing Docker Compose plugin..."
+              sudo mkdir -p /usr/local/lib/docker/cli-plugins
+              sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+              sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+              echo "Docker Compose installed successfully"
+            else
+              echo "Docker Compose already installed"
+            fi
+            
+            docker --version
+            docker compose version
+          EOF
+
       - name: Create deployment directory on EC2
         run: |
           ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
@@ -50,20 +84,20 @@ jobs:
             cd ~/risingfruit/backend
             
             # Stop existing container if running
-            docker-compose down || true
+            sudo docker compose down || true
             
             # Build new image
-            docker-compose build --no-cache
+            sudo docker compose build --no-cache
             
             # Start container
-            docker-compose up -d
+            sudo docker compose up -d
             
             # Show status
-            docker-compose ps
+            sudo docker compose ps
             
             # Show logs (last 50 lines)
             sleep 5
-            docker-compose logs --tail=50
+            sudo docker compose logs --tail=50
           EOF
 
       - name: Verify deployment
@@ -72,11 +106,11 @@ jobs:
             cd ~/risingfruit/backend
             
             # Check if container is running
-            if docker-compose ps | grep -q "Up"; then
+            if sudo docker compose ps | grep -q "Up\|running"; then
               echo "✅ Container is running"
             else
               echo "❌ Container failed to start"
-              docker-compose logs
+              sudo docker compose logs
               exit 1
             fi
           EOF
