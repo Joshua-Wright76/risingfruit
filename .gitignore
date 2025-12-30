@@ -3,10 +3,13 @@
 .env.local
 .env.*.local
 
-# Backend data (downloaded CSV files)
+# Backend data (downloaded CSV files and SQLite database)
 backend/data/
 *.csv
 *.csv.bz2
+*.db
+*.sqlite
+*.sqlite3
 
 # Node modules (for future frontend)
 node_modules/

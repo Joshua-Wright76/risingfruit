@@ -61,6 +61,8 @@ A Progressive Web App providing a mobile-first interface for the Falling Fruit u
 |-------|------------|---------|
 | Runtime | Docker | Container orchestration |
 | Host | AWS EC2 | Production server |
+| API Framework | FastAPI | REST API server |
+| Database | SQLite + R-tree | Spatial queries with R-tree index |
 | Data Sync | Bash + curl + bzip2 | Download Falling Fruit exports |
 | CI/CD | GitHub Actions | Automated deployment |
 
@@ -75,9 +77,16 @@ risingfruit/
 │   └── workflows/
 │       └── deploy.yml          # EC2 deployment workflow
 ├── backend/
+│   ├── db/
+│   │   ├── schema.sql          # SQLite schema with R-tree
+│   │   └── import.py           # CSV to SQLite import script
+│   ├── src/
+│   │   ├── main.py             # FastAPI application
+│   │   └── database.py         # Database utilities
 │   ├── scripts/
 │   │   └── sync-data.sh        # Download Falling Fruit CSVs
-│   ├── data/                   # Downloaded CSV files (gitignored)
+│   ├── data/                   # CSVs and SQLite DB (gitignored)
+│   ├── requirements.txt        # Python dependencies
 │   ├── Dockerfile
 │   └── docker-compose.yml
 ├── docs/

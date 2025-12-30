@@ -6,33 +6,17 @@ services:
     container_name: risingfruit-backend
     restart: unless-stopped
     volumes:
-      # Persist downloaded data outside container
+      # Persist data (CSVs and SQLite database)
       - ./data:/app/data
     environment:
       - TZ=UTC
-    # Future: expose API port
-    # ports:
-    #   - "8000:8000"
+      - DATABASE_PATH=/app/data/risingfruit.db
+      - PORT=8000
+    ports:
+      - "8000:8000"
     healthcheck:
-      test: ["CMD", "test", "-f", "/app/data/locations.csv"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-
-  # Future: Add database service
-  # db:
-  #   image: postgres:16-alpine
-  #   container_name: risingfruit-db
-  #   restart: unless-stopped
-  #   environment:
-  #     POSTGRES_DB: risingfruit
-  #     POSTGRES_USER: risingfruit
-  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
-
-# volumes:
-#   postgres_data:
+      start_period: 120s  # Allow time for initial data download and import

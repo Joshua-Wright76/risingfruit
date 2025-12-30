@@ -1,0 +1,22 @@
+# Rising Fruit Backend Dependencies
+
+# Web Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Database
+aiosqlite==0.20.0
+
+# Data validation
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# HTTP client (for future external API calls)
+httpx==0.28.1
+
+# CORS middleware
+python-multipart==0.0.20
+
+# Development
+python-dotenv==1.0.1
+
