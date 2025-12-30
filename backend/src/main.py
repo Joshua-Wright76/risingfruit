@@ -2,14 +2,18 @@
 Rising Fruit API Server
 
 FastAPI application providing REST endpoints for the Falling Fruit data.
+Also serves the frontend static files when available.
 """
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .database import (
@@ -232,6 +236,57 @@ async def get_type(type_id: int):
         raise HTTPException(status_code=404, detail="Type not found")
     
     return TypeDetail(**type_data)
+
+
+# ============================================
+# Static Files (Frontend)
+# ============================================
+
+# Serve frontend static files if available
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
+
+if FRONTEND_DIR.exists():
+    # Serve static assets (JS, CSS, etc.)
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
+    
+    # Serve other static files (icons, manifest, sw.js, etc.)
+    @app.get("/manifest.webmanifest")
+    async def manifest():
+        return FileResponse(FRONTEND_DIR / "manifest.webmanifest", media_type="application/manifest+json")
+    
+    @app.get("/sw.js")
+    async def service_worker():
+        return FileResponse(FRONTEND_DIR / "sw.js", media_type="application/javascript")
+    
+    @app.get("/registerSW.js")
+    async def register_service_worker():
+        return FileResponse(FRONTEND_DIR / "registerSW.js", media_type="application/javascript")
+    
+    @app.get("/workbox-{rest_of_path:path}")
+    async def workbox_files(rest_of_path: str):
+        return FileResponse(FRONTEND_DIR / f"workbox-{rest_of_path}", media_type="application/javascript")
+    
+    @app.get("/icons/{icon_path:path}")
+    async def icons(icon_path: str):
+        return FileResponse(FRONTEND_DIR / "icons" / icon_path)
+    
+    @app.get("/leaf.svg")
+    async def leaf_icon():
+        return FileResponse(FRONTEND_DIR / "leaf.svg", media_type="image/svg+xml")
+    
+    # Catch-all route for SPA - must be last
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve the SPA for all non-API routes."""
+        # Don't serve index.html for API routes
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        
+        # Serve index.html for all other routes (SPA routing)
+        index_path = FRONTEND_DIR / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path, media_type="text/html")
+        raise HTTPException(status_code=404, detail="Frontend not found")
 
 
 # ============================================
