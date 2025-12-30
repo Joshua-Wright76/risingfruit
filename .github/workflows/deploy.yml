@@ -102,6 +102,12 @@ jobs:
             # Remove old images to force fresh build
             sudo docker image prune -af || true
             
+            # Remove old database to force fresh import (one-time fix)
+            if [ -f ~/risingfruit/backend/data/risingfruit.db ]; then
+              echo "Removing old database to force fresh import..."
+              sudo rm -f ~/risingfruit/backend/data/risingfruit.db
+            fi
+            
             # Build new image (no cache)
             sudo docker compose build --no-cache
             
