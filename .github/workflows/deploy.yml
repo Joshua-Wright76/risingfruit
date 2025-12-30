@@ -51,19 +51,24 @@ jobs:
             # Ensure Docker is running
             sudo systemctl start docker
             
-            # Install Docker Compose plugin (if not present)
-            if ! docker compose version &> /dev/null; then
-              echo "Installing Docker Compose plugin..."
-              sudo mkdir -p /usr/local/lib/docker/cli-plugins
-              sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-              sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-              echo "Docker Compose installed successfully"
-            else
-              echo "Docker Compose already installed"
-            fi
+            # Install/update Docker Compose plugin and buildx
+            echo "Installing/updating Docker Compose and buildx..."
+            sudo mkdir -p /usr/local/lib/docker/cli-plugins
             
+            # Install latest docker-compose
+            sudo curl -SL "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
+              -o /usr/local/lib/docker/cli-plugins/docker-compose
+            sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+            
+            # Install latest buildx
+            sudo curl -SL "https://github.com/docker/buildx/releases/download/v0.19.3/buildx-v0.19.3.linux-amd64" \
+              -o /usr/local/lib/docker/cli-plugins/docker-buildx
+            sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+            
+            echo "Docker Compose and buildx installed"
             docker --version
             docker compose version
+            docker buildx version
           EOF
 
       - name: Create deployment directory on EC2
