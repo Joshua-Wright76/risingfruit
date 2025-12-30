@@ -14,11 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Create data directory
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data /app/scripts
 
-# Copy scripts
-COPY scripts/ /app/scripts/
-RUN chmod +x /app/scripts/*.sh
+# Copy scripts first and ensure they're executable
+COPY scripts/sync-data.sh /app/scripts/sync-data.sh
+RUN chmod +x /app/scripts/sync-data.sh && \
+    sed -i 's/\r$//' /app/scripts/sync-data.sh
 
 # Copy application code (for future API server)
 COPY . /app/
@@ -30,4 +31,3 @@ COPY . /app/
 # Run initial data sync on container start
 # Then keep container running for future API server
 CMD ["/bin/bash", "-c", "/app/scripts/sync-data.sh && tail -f /dev/null"]
-
