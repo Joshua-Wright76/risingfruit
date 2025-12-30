@@ -14,20 +14,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Create data directory
-RUN mkdir -p /app/data /app/scripts
+RUN mkdir -p /app/data
 
-# Copy scripts first and ensure they're executable
-COPY scripts/sync-data.sh /app/scripts/sync-data.sh
-RUN chmod +x /app/scripts/sync-data.sh && \
-    sed -i 's/\r$//' /app/scripts/sync-data.sh
-
-# Copy application code (for future API server)
+# Copy everything
 COPY . /app/
 
+# Ensure scripts are executable (fix line endings and permissions)
+RUN chmod +x /app/scripts/*.sh && \
+    sed -i 's/\r$//' /app/scripts/*.sh
+
 # Install Python dependencies (placeholder for future)
-# COPY requirements.txt /app/
 # RUN pip install --no-cache-dir -r requirements.txt
 
-# Run initial data sync on container start
-# Then keep container running for future API server
-CMD ["/bin/bash", "-c", "/app/scripts/sync-data.sh && tail -f /dev/null"]
+# Run initial data sync on container start, then keep container alive
+CMD ["bash", "-c", "bash /app/scripts/sync-data.sh && echo 'Sync complete. Container staying alive...' && tail -f /dev/null"]

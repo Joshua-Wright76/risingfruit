@@ -88,21 +88,26 @@ jobs:
           ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             cd ~/risingfruit/backend
             
-            # Stop existing container if running
-            sudo docker compose down || true
+            # Stop and remove existing containers
+            sudo docker compose down --remove-orphans || true
             
-            # Build new image
+            # Remove old images to force fresh build
+            sudo docker image prune -af || true
+            
+            # Build new image (no cache)
             sudo docker compose build --no-cache
             
             # Start container
             sudo docker compose up -d
             
+            # Wait for container to start
+            sleep 10
+            
             # Show status
             sudo docker compose ps
             
-            # Show logs (last 50 lines)
-            sleep 5
-            sudo docker compose logs --tail=50
+            # Show logs
+            sudo docker compose logs --tail=100
           EOF
 
       - name: Verify deployment
