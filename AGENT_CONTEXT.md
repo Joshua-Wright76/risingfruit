@@ -6,14 +6,15 @@
 
 Rising Fruit is a Progressive Web App that provides a modern, mobile-first interface for discovering and sharing urban foraging locations. It consumes data from the [Falling Fruit](https://fallingfruit.org/) open-source foraging database.
 
-**Current Status:** Backend complete, ready for frontend development.
+**Current Status:** Frontend complete, deployed to production on EC2.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Rising Fruit PWA (TODO)                      │
-│            React + Vite + Tailwind + Mapbox GL                   │
+│                     Rising Fruit PWA (Complete)                  │
+│  React + Vite + TypeScript + Tailwind + Mapbox GL + react-map-gl│
+│  Dark mode • Custom fruit icons • PWA with offline caching      │
 └─────────────────────────────┬────────────────────────────────────┘
                               │ HTTP/JSON
                               ▼
@@ -22,7 +23,8 @@ Rising Fruit is a Progressive Web App that provides a modern, mobile-first inter
 │  ┌─────────────┐    ┌──────────────┐    ┌─────────────────┐     │
 │  │ Data Sync   │───▶│   SQLite     │◀───│   FastAPI       │     │
 │  │ (CSV)       │    │   + R-tree   │    │   REST API      │     │
-│  └─────────────┘    └──────────────┘    └─────────────────┘     │
+│  └─────────────┘    └──────────────┘    │ + Static Files  │     │
+│                                          └─────────────────┘     │
 └─────────────────────────────────────────────────────────────────┘
                               ▲
                               │ Nightly sync
@@ -248,7 +250,7 @@ http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000/docs
 | Hosting | AWS EC2 (t2.micro) |
 | CI/CD | GitHub Actions |
 
-### Frontend (To Build)
+### Frontend (Complete)
 
 | Component | Technology |
 |-----------|------------|
@@ -256,93 +258,180 @@ http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000/docs
 | Build Tool | Vite |
 | Language | TypeScript |
 | Styling | Tailwind CSS |
-| Maps | Mapbox GL JS |
+| Maps | Mapbox GL JS + react-map-gl |
 | State Management | TanStack Query |
-| Routing | React Router v6 |
 | PWA | vite-plugin-pwa |
+| Testing | Playwright E2E |
 
 ## Project Structure
 
 ```
 risingfruit/
 ├── .cursor/rules/risingfruit.mdc   # Agent rules
-├── .github/workflows/deploy.yml    # CI/CD pipeline
+├── .github/workflows/deploy.yml    # CI/CD pipeline (backend + frontend)
 ├── backend/
 │   ├── db/
 │   │   ├── schema.sql              # SQLite schema
 │   │   └── import.py               # CSV import script
 │   ├── src/
-│   │   ├── main.py                 # FastAPI app
+│   │   ├── main.py                 # FastAPI app + static file serving
 │   │   └── database.py             # DB utilities
 │   ├── scripts/
 │   │   └── sync-data.sh            # Data download script
 │   ├── data/                       # CSV + SQLite (gitignored)
+│   ├── frontend/dist/              # Built frontend (deployed)
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── docker-compose.yml
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Map.tsx             # Main map with markers & clustering
+│   │   │   ├── LocationSheet.tsx   # Detail bottom sheet (React Portal)
+│   │   │   ├── SearchBar.tsx       # Type search with autocomplete
+│   │   │   ├── FilterPanel.tsx     # Category & season filters
+│   │   │   ├── EmptyState.tsx      # No results message
+│   │   │   ├── LoadingSkeleton.tsx # Map loading state
+│   │   │   ├── FruitIcons.ts       # Custom marker icon data URIs
+│   │   │   └── MarkerIcons.ts      # Marker icon loading utilities
+│   │   ├── lib/
+│   │   │   └── api.ts              # API client functions
+│   │   ├── types/
+│   │   │   └── location.ts         # TypeScript interfaces
+│   │   ├── App.tsx                 # Root component
+│   │   ├── main.tsx                # Entry point
+│   │   └── index.css               # Tailwind + custom theme
+│   ├── e2e/                        # Playwright E2E tests
+│   │   ├── fixtures/test-fixtures.ts
+│   │   ├── map.spec.ts
+│   │   ├── markers.spec.ts
+│   │   ├── search.spec.ts
+│   │   └── filters.spec.ts
+│   ├── public/
+│   │   ├── icons/                  # PWA icons
+│   │   ├── leaf.svg                # Favicon
+│   │   └── manifest.json           # PWA manifest
+│   ├── playwright.config.ts
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
+│   └── package.json
 ├── docs/
 │   ├── api-reference.md
 │   └── architecture.md
-├── src/                            # Frontend (TODO)
-├── .env.local                      # Secrets (gitignored)
+├── .env.local                      # Local secrets (gitignored)
 ├── .gitignore
 └── AGENT_CONTEXT.md                # This file
 ```
 
+## Frontend Features (Implemented)
+
+### Map View
+- Full-screen Mapbox GL map with dark theme
+- Location markers with Supercluster clustering
+- Custom fruit icons for 31 plant types (banana, apple, orange, etc.)
+- Generic leaf icon fallback for other types
+- Geolocation button (bottom-right)
+- Default location: Long Beach, CA
+
+### Location Detail Sheet
+- Slide-up bottom sheet on marker tap
+- Uses React Portal for proper z-index stacking
+- Shows: type name, scientific name, description, season, access
+- "Get Directions" button (Apple Maps on iOS, Google Maps elsewhere)
+- Share button with Web Share API / clipboard fallback
+- Close via X button, click outside, or Escape key
+
+### Search & Filters
+- Type search with autocomplete dropdown
+- Category filter pills (Forager, Honeybee, Grafter, Freegan)
+- Season filter toggle ("In season now")
+- Clear all filters button
+- Empty state when no results
+
+### PWA Support
+- Installable on mobile devices
+- App manifest with icons
+- Service worker for offline caching
+- Caches: map tiles, API responses, Google Fonts
+
+### Dark Mode
+- Dark theme by default (`mapbox://styles/mapbox/dark-v11`)
+- Custom dark color palette in Tailwind
+
+## Technical Decisions
+
+### LocationSheet Styling
+The LocationSheet uses React Portal + inline styles instead of Tailwind classes. This was required because:
+1. The sheet needs to render above the Mapbox canvas (z-index issues)
+2. Tailwind classes weren't being applied to Portal content
+3. Inline styles ensure consistent rendering regardless of CSS context
+
+### Marker Click Detection
+Click detection uses a 40x40px bounding box around the click point:
+```typescript
+const bbox = [
+  [e.point.x - 20, e.point.y - 20],
+  [e.point.x + 20, e.point.y + 20]
+];
+const features = map.queryRenderedFeatures(bbox);
+```
+This improves touch targets on mobile where precise clicks are difficult.
+
+### Feature Querying
+The map queries all rendered features at the click point, then filters by layer ID:
+```typescript
+const allFeatures = map.queryRenderedFeatures(bbox);
+const ourLayers = ['clusters', 'unclustered-point', 'unclustered-point-fallback'];
+const features = allFeatures.filter(f => ourLayers.includes(f.layer?.id || ''));
+```
+This is more reliable than passing `layers` option directly to `queryRenderedFeatures`.
+
 ## Environment Variables
 
 ```bash
-# .env.local
+# frontend/.env.local
 
-# Backend API
+# Backend API (defaults to EC2 if not set)
 VITE_API_BASE_URL=http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000
 
-# Mapbox (get from mapbox.com)
+# Mapbox (required - get from mapbox.com)
 VITE_MAPBOX_TOKEN=pk.your_token_here
-
-# EC2 (for deployment)
-VITE_EC2_HOST=ec2-16-144-65-155.us-west-2.compute.amazonaws.com
 ```
 
-## Frontend Requirements
+### GitHub Secrets (for deployment)
 
-### Core Features
+| Secret | Description |
+|--------|-------------|
+| `EC2_HOST` | EC2 hostname |
+| `EC2_USER` | SSH username |
+| `EC2_SSH_KEY` | SSH private key |
+| `MAPBOX_TOKEN` | Mapbox access token for production builds |
 
-1. **Map View** (Primary)
-   - Full-screen Mapbox GL map
-   - Location markers with clustering
-   - Bounding box queries on pan/zoom
-   - Current location button
+## Deployment
 
-2. **Location Details**
-   - Bottom sheet on marker tap
-   - Type, description, season, access info
-   - Photos (future)
-   - Directions link
+### Automatic (GitHub Actions)
 
-3. **Search & Filter**
-   - Search by type name
-   - Filter by category (forager, honeybee, etc.)
-   - Filter by season
+Push to `main` branch triggers:
+1. Run Playwright E2E tests
+2. Build frontend (`npm run build` with `VITE_MAPBOX_TOKEN`)
+3. SSH into EC2
+4. rsync backend files (excluding frontend/)
+5. rsync frontend/dist to backend/frontend/dist
+6. Docker build + restart
+7. FastAPI serves static frontend files
 
-4. **PWA**
-   - Installable on mobile
-   - Offline map tile caching
-   - Service worker for API caching
+### Manual Testing
 
-### Mobile-First Design
+```bash
+# Run frontend locally
+cd frontend
+npm install
+npm run dev
 
-- Touch targets: 44x44px minimum
-- Bottom navigation
-- Swipe gestures for sheets
-- Pull-to-refresh
-- Responsive to desktop
-
-### Performance Targets
-
-- First Contentful Paint: < 1.5s
-- Time to Interactive: < 3s
-- Bundle size: < 200KB gzipped
+# Run E2E tests
+npm run test:e2e
+```
 
 ## Key Data Insights
 
@@ -386,40 +475,22 @@ const response = await fetch(
 );
 ```
 
-## Deployment
+## Next Steps (Future Enhancements)
 
-### Backend (Automatic)
-
-Push to `main` branch triggers:
-1. SSH into EC2
-2. rsync backend files
-3. Docker build + restart
-4. Data import (if DB missing)
-
-### Frontend (TODO)
-
-Options:
-- Vercel (recommended for Vite)
-- Netlify
-- AWS S3 + CloudFront
-- Same EC2 with nginx
-
-## Next Steps
-
-1. **Initialize React project** with Vite + TypeScript
-2. **Set up Tailwind CSS** with custom theme
-3. **Integrate Mapbox GL** with markers
-4. **Create API client** with TanStack Query
-5. **Build location sheet** component
-6. **Add type filtering** UI
-7. **Configure PWA** with offline support
-8. **Deploy frontend** to Vercel/Netlify
+1. **Additional fruit icons** - Expand from 31 to cover more common types
+2. **User authentication** - Allow users to log in
+3. **Location submissions** - Let users add new foraging spots
+4. **Photo support** - Upload and display location photos
+5. **Offline location caching** - Cache visited locations for offline viewing
+6. **Route planning** - Multi-stop foraging route optimization
+7. **Notifications** - Alert when types are in season
 
 ## Resources
 
 - [Mapbox GL JS Docs](https://docs.mapbox.com/mapbox-gl-js/)
+- [react-map-gl](https://visgl.github.io/react-map-gl/)
 - [TanStack Query](https://tanstack.com/query/latest)
 - [Vite PWA Plugin](https://vite-pwa-org.netlify.app/)
+- [Playwright](https://playwright.dev/)
 - [Falling Fruit](https://fallingfruit.org/)
 - [API Swagger Docs](http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000/docs)
-

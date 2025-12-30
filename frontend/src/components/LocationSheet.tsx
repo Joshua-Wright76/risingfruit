@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { X, Navigation, Calendar, Lock, Leaf, ExternalLink, Share2, Check, Copy } from 'lucide-react';
 import { getLocation } from '../lib/api';
+import { getFallbackSeason, formatFallbackSeason } from '../lib/fruitSeasons';
 import type { LocationDetail } from '../types/location';
 
 interface LocationSheetProps {
@@ -10,12 +11,27 @@ interface LocationSheetProps {
   onClose: () => void;
 }
 
-function formatSeason(start: string | null, stop: string | null, noSeason: boolean): string {
-  if (noSeason) return 'Year-round';
-  if (!start && !stop) return 'Unknown';
-  if (start && stop) return `${start} – ${stop}`;
-  if (start) return `From ${start}`;
-  return `Until ${stop}`;
+interface SeasonInfo {
+  text: string;
+  isFallback: boolean;
+}
+
+function formatSeason(start: string | null, stop: string | null, noSeason: boolean, typeIds: number[]): SeasonInfo {
+  if (noSeason) return { text: 'Year-round', isFallback: false };
+  
+  if (start || stop) {
+    if (start && stop) return { text: `${start} – ${stop}`, isFallback: false };
+    if (start) return { text: `From ${start}`, isFallback: false };
+    return { text: `Until ${stop}`, isFallback: false };
+  }
+  
+  // Try to get fallback season based on plant type
+  const fallbackSeason = getFallbackSeason(typeIds);
+  if (fallbackSeason) {
+    return { text: formatFallbackSeason(fallbackSeason), isFallback: true };
+  }
+  
+  return { text: 'Unknown', isFallback: false };
 }
 
 function getDirectionsUrl(lat: number, lng: number): string {
@@ -277,15 +293,25 @@ function LocationContent({ location }: { location: LocationDetail }) {
       {/* Info grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         {/* Season */}
-        <div style={{ backgroundColor: styles.colors.surface800, borderRadius: '12px', padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <Calendar style={{ width: '16px', height: '16px', color: styles.colors.primary400 }} />
-            <span style={{ fontSize: '12px', fontWeight: 500, color: styles.colors.surface500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Season</span>
-          </div>
-          <p style={{ fontSize: '14px', fontWeight: 500, color: styles.colors.surface200, margin: 0 }}>
-            {formatSeason(location.season_start, location.season_stop, location.no_season)}
-          </p>
-        </div>
+        {(() => {
+          const seasonInfo = formatSeason(location.season_start, location.season_stop, location.no_season, location.type_ids);
+          return (
+            <div style={{ backgroundColor: styles.colors.surface800, borderRadius: '12px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <Calendar style={{ width: '16px', height: '16px', color: styles.colors.primary400 }} />
+                <span style={{ fontSize: '12px', fontWeight: 500, color: styles.colors.surface500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Season</span>
+              </div>
+              <p style={{ fontSize: '14px', fontWeight: 500, color: styles.colors.surface200, margin: 0 }}>
+                {seasonInfo.text}
+              </p>
+              {seasonInfo.isFallback && (
+                <p style={{ fontSize: '11px', color: styles.colors.surface500, margin: '4px 0 0 0', fontStyle: 'italic' }}>
+                  (typical for this plant)
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Access */}
         <div style={{ backgroundColor: styles.colors.surface800, borderRadius: '12px', padding: '16px' }}>

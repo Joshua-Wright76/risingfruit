@@ -5,6 +5,24 @@
 const svgToDataUri = (svg: string): string =>
   `data:image/svg+xml,${encodeURIComponent(svg)}`;
 
+// Wrap SVG content in a white circle background with optional green border
+const wrapInCircle = (svgContent: string, inSeason: boolean): string => {
+  const strokeColor = inSeason ? '#22c55e' : '#a3a3a3'; // primary-500 or surface-400
+  const strokeWidth = inSeason ? '3' : '1.5';
+  return `<svg width="40" height="40" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="40" cy="40" r="36" fill="white" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>
+  <g transform="translate(8, 8)">${svgContent}</g>
+</svg>`;
+};
+
+// Extract inner content from SVG (remove outer <svg> tags)
+const extractSvgContent = (svg: string): string => {
+  return svg
+    .replace(/<svg[^>]*>/, '')
+    .replace(/<\/svg>/, '')
+    .trim();
+};
+
 // Avocado
 const avocadoSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="M 32 18 Q 22 22 20 34 Q 20 46 32 50 Q 44 46 44 34 Q 42 22 32 18 Z" fill="#6B8E23" stroke="#556B2F" stroke-width="2"/>
@@ -22,11 +40,29 @@ const bambooSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" x
 </svg>`;
 
 // Banana
-const bananaSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M 20 20 Q 16 26 16 34 Q 16 42 20 48 Q 24 48 28 46 Q 28 38 28 30 Q 28 22 24 20 Z" fill="#FFD700" stroke="#FFA500" stroke-width="2"/>
-  <line x1="20" y1="20" x2="20" y2="18" stroke="#8B4513" stroke-width="2"/>
-  <ellipse cx="20" cy="18" rx="3" ry="1.5" fill="#654321"/>
-</svg>`;
+const bananaSvg = `export function Banana() {
+  return (
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Bunch of 3 bananas */}
+      {/* Left banana */}
+      <path d="M 28 20 Q 22 24 20 32 Q 19 40 22 46 Q 24 46 26 44 Q 28 36 28 28 Q 28 24 28 20 Z" fill="#FFD700" stroke="#FFA500" strokeWidth="2"/>
+      
+      {/* Center banana */}
+      <path d="M 32 18 Q 28 22 26 30 Q 25 38 28 46 Q 30 46 32 44 Q 34 36 34 26 Q 34 22 32 18 Z" fill="#FFED4E" stroke="#FFA500" strokeWidth="2"/>
+      
+      {/* Right banana */}
+      <path d="M 36 20 Q 34 24 34 32 Q 34 40 38 46 Q 40 46 42 44 Q 44 36 42 28 Q 40 24 36 20 Z" fill="#FFD700" stroke="#FFA500" strokeWidth="2"/>
+      
+      {/* Stem at top */}
+      <ellipse cx="32" cy="18" rx="6" ry="3" fill="#8B7355" stroke="#654321" strokeWidth="1.5"/>
+      
+      {/* Darker edges on bananas */}
+      <line x1="28" y1="24" x2="26" y2="42" stroke="#FFA500" strokeWidth="1" opacity="0.5"/>
+      <line x1="32" y1="22" x2="30" y2="44" stroke="#FFA500" strokeWidth="1" opacity="0.5"/>
+      <line x1="38" y1="24" x2="40" y2="42" stroke="#FFA500" strokeWidth="1" opacity="0.5"/>
+    </svg>
+  );
+}`;
 
 // Bitter Orange
 const bitterOrangeSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -297,44 +333,63 @@ const thymeSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xm
   <ellipse cx="40" cy="36" rx="3" ry="2" fill="#8FBC8F" stroke="#556B2F" stroke-width="1"/>
 </svg>`;
 
-// Export all fruit icons as data URIs
-export const fruitIcons = {
-  avocado: svgToDataUri(avocadoSvg),
-  bamboo: svgToDataUri(bambooSvg),
-  banana: svgToDataUri(bananaSvg),
-  bitterOrange: svgToDataUri(bitterOrangeSvg),
-  blackWalnut: svgToDataUri(blackWalnutSvg),
-  bluePassionflower: svgToDataUri(bluePassionflowerSvg),
-  clementine: svgToDataUri(clementineSvg),
-  collardGreens: svgToDataUri(collardGreensSvg),
-  commonFig: svgToDataUri(commonFigSvg),
-  commonGuava: svgToDataUri(commonGuavaSvg),
-  fig: svgToDataUri(figSvg),
-  grape: svgToDataUri(grapeSvg),
-  grapefruit: svgToDataUri(grapefruitSvg),
-  guava: svgToDataUri(guavaSvg),
-  kale: svgToDataUri(kaleSvg),
-  lemon: svgToDataUri(lemonSvg),
-  lime: svgToDataUri(limeSvg),
-  loquat: svgToDataUri(loquatSvg),
-  olive: svgToDataUri(oliveSvg),
-  orange: svgToDataUri(orangeSvg),
-  peach: svgToDataUri(peachSvg),
-  pineappleSage: svgToDataUri(pineappleSageSvg),
-  pomegranate: svgToDataUri(pomegranateSvg),
-  rose: svgToDataUri(roseSvg),
-  rosemary: svgToDataUri(rosemarySvg),
-  sage: svgToDataUri(sageSvg),
-  shiso: svgToDataUri(shisoSvg),
-  squash: svgToDataUri(squashSvg),
-  strawberryHedgehog: svgToDataUri(strawberryHedgehogSvg),
-  sweetLime: svgToDataUri(sweetLimeSvg),
-  thyme: svgToDataUri(thymeSvg),
-} as const;
+// Raw SVGs mapped by name for wrapping
+const rawSvgs: Record<string, string> = {
+  avocado: avocadoSvg,
+  bamboo: bambooSvg,
+  banana: bananaSvg,
+  bitterOrange: bitterOrangeSvg,
+  blackWalnut: blackWalnutSvg,
+  bluePassionflower: bluePassionflowerSvg,
+  clementine: clementineSvg,
+  collardGreens: collardGreensSvg,
+  commonFig: commonFigSvg,
+  commonGuava: commonGuavaSvg,
+  fig: figSvg,
+  grape: grapeSvg,
+  grapefruit: grapefruitSvg,
+  guava: guavaSvg,
+  kale: kaleSvg,
+  lemon: lemonSvg,
+  lime: limeSvg,
+  loquat: loquatSvg,
+  olive: oliveSvg,
+  orange: orangeSvg,
+  peach: peachSvg,
+  pineappleSage: pineappleSageSvg,
+  pomegranate: pomegranateSvg,
+  rose: roseSvg,
+  rosemary: rosemarySvg,
+  sage: sageSvg,
+  shiso: shisoSvg,
+  squash: squashSvg,
+  strawberryHedgehog: strawberryHedgehogSvg,
+  sweetLime: sweetLimeSvg,
+  thyme: thymeSvg,
+};
+
+// Generate wrapped icons (white circle background)
+const generateWrappedIcons = (inSeason: boolean): Record<string, string> => {
+  const result: Record<string, string> = {};
+  for (const [name, svg] of Object.entries(rawSvgs)) {
+    const content = extractSvgContent(svg);
+    result[name] = svgToDataUri(wrapInCircle(content, inSeason));
+  }
+  return result;
+};
+
+// Export all fruit icons as data URIs (regular - gray border)
+export const fruitIcons = generateWrappedIcons(false) as Record<string, string>;
+
+// Export all fruit icons with green "in season" border
+export const fruitIconsInSeason = generateWrappedIcons(true) as Record<string, string>;
+
+// Icon names for type checking
+export type FruitIconName = keyof typeof rawSvgs;
 
 // Type ID to icon name mapping (primary type IDs for common fruits)
 // Multiple type IDs can map to the same icon
-export const typeIdToIcon: Record<number, keyof typeof fruitIcons> = {
+export const typeIdToIcon: Record<number, FruitIconName> = {
   // Avocado
   7: 'avocado',
   4631: 'avocado',
@@ -456,11 +511,11 @@ export const typeIdToIcon: Record<number, keyof typeof fruitIcons> = {
 };
 
 // Get icon name for a location based on its type IDs
-export function getIconForTypes(typeIds: number[]): keyof typeof fruitIcons | null {
+export function getIconForTypes(typeIds: number[]): FruitIconName | null {
   for (const typeId of typeIds) {
     const iconName = typeIdToIcon[typeId];
     if (iconName) {
-      return iconName;
+      return iconName as FruitIconName;
     }
   }
   return null;

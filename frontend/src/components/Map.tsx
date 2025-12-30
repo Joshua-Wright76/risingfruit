@@ -20,7 +20,8 @@ import { FilterPanel, type FilterState } from './FilterPanel';
 import { EmptyState } from './EmptyState';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { markerIcons } from './MarkerIcons';
-import { fruitIcons, getIconForTypes } from './FruitIcons';
+import { fruitIcons, fruitIconsInSeason, getIconForTypes } from './FruitIcons';
+import { isIconInSeason } from '../lib/fruitSeasons';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -39,6 +40,8 @@ function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
     features: locations.map((loc) => {
       // Determine which icon to use based on type IDs
       const fruitIcon = getIconForTypes(loc.type_ids);
+      // Check if the fruit is currently in season (for green border)
+      const fruitInSeason = fruitIcon ? isIconInSeason(fruitIcon) : false;
       return {
         type: 'Feature' as const,
         id: loc.id,
@@ -53,7 +56,7 @@ function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
           type_ids: loc.type_ids,
           unverified: loc.unverified,
           // Only include fruitIcon if it exists
-          ...(fruitIcon ? { fruitIcon } : {}),
+          ...(fruitIcon ? { fruitIcon, fruitInSeason } : {}),
         },
       };
     }),
@@ -100,6 +103,7 @@ const clusterCountLayer: LayerProps = {
 
 // Individual point style with custom icons
 // Uses fruit-specific icons when available, falls back to generic leaf
+// Icons in season get green border variant
 const unclusteredPointLayer: LayerProps = {
   id: 'unclustered-point',
   type: 'symbol',
@@ -111,7 +115,10 @@ const unclusteredPointLayer: LayerProps = {
       // If unverified, use unverified marker
       ['==', ['get', 'unverified'], true],
       'marker-unverified',
-      // If has fruit icon, use it
+      // If has fruit icon and is in season, use in-season variant
+      ['all', ['has', 'fruitIcon'], ['==', ['get', 'fruitInSeason'], true]],
+      ['concat', 'fruit-inseason-', ['get', 'fruitIcon']],
+      // If has fruit icon but not in season, use regular variant
       ['has', 'fruitIcon'],
       ['concat', 'fruit-', ['get', 'fruitIcon']],
       // Default to leaf
@@ -226,12 +233,17 @@ export function ForagingMap() {
       ['marker-generic', markerIcons.generic],
     ];
 
-    // Fruit-specific icons
+    // Fruit-specific icons (regular - gray border)
     const fruitIconEntries: [string, string][] = Object.entries(fruitIcons).map(
       ([name, dataUri]) => [`fruit-${name}`, dataUri]
     );
 
-    const allIconEntries = [...baseIconEntries, ...fruitIconEntries];
+    // Fruit-specific icons (in-season - green border)
+    const fruitInSeasonIconEntries: [string, string][] = Object.entries(fruitIconsInSeason).map(
+      ([name, dataUri]) => [`fruit-inseason-${name}`, dataUri]
+    );
+
+    const allIconEntries = [...baseIconEntries, ...fruitIconEntries, ...fruitInSeasonIconEntries];
 
     let loadedCount = 0;
     const totalIcons = allIconEntries.length;
@@ -243,7 +255,7 @@ export function ForagingMap() {
         return;
       }
 
-      const img = new Image(32, 32);
+      const img = new Image(40, 40);
       img.onload = () => {
         if (!map.hasImage(name)) {
           map.addImage(name, img, { sdf: false });
