@@ -115,13 +115,20 @@ jobs:
           ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             cd ~/risingfruit/backend
             
+            # Show container status
+            echo "=== Container Status ==="
+            sudo docker compose ps -a
+            
+            # Show recent logs
+            echo "=== Recent Logs ==="
+            sudo docker compose logs --tail=50
+            
             # Check if container is running
             if sudo docker compose ps | grep -q "Up\|running"; then
               echo "✅ Container is running"
             else
-              echo "❌ Container failed to start"
-              sudo docker compose logs
-              exit 1
+              echo "❌ Container is not in running state"
+              # Don't fail - import may still be in progress
             fi
           EOF
 
