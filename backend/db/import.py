@@ -2,6 +2,8 @@
 """
 Import Falling Fruit CSV data into SQLite database.
 
+Memory-optimized version that imports in small chunks.
+
 Usage:
     python import.py [--data-dir /path/to/data] [--db-path /path/to/db.sqlite]
 """
@@ -13,7 +15,6 @@ import os
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Generator
 
 # Increase CSV field size limit for large description fields
 csv.field_size_limit(sys.maxsize)
@@ -30,10 +31,13 @@ LOCALIZED_COLUMNS = [
     "tr_name", "uk_name", "vi_name", "zh_hans_name", "zh_hant_name"
 ]
 
+# Batch size for memory-efficient processing
+BATCH_SIZE = 5000  # Smaller batches for lower memory usage
+
 
 def log(msg: str) -> None:
     """Print log message with prefix."""
-    print(f"[IMPORT] {msg}")
+    print(f"[IMPORT] {msg}", flush=True)
 
 
 def create_database(db_path: Path) -> sqlite3.Connection:
@@ -52,7 +56,8 @@ def create_database(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA cache_size=-64000")  # 64MB cache
+    conn.execute("PRAGMA cache_size=-32000")  # 32MB cache (reduced from 64MB)
+    conn.execute("PRAGMA temp_store=FILE")  # Use file for temp storage instead of RAM
     
     log("Applying schema...")
     with open(SCHEMA_PATH, "r") as f:
@@ -119,6 +124,7 @@ def import_types(conn: sqlite3.Connection, data_dir: Path) -> int:
             count += 1
             
             if count % 1000 == 0:
+                conn.commit()  # Commit every 1000 rows
                 log(f"  Imported {count} types...")
     
     conn.commit()
@@ -130,73 +136,15 @@ def import_types(conn: sqlite3.Connection, data_dir: Path) -> int:
     return count
 
 
-def import_locations_batch(
-    conn: sqlite3.Connection,
-    rows: list[dict],
-    rtree_data: list[tuple]
-) -> tuple[int, list[tuple]]:
-    """Import a batch of locations."""
-    cursor = conn.cursor()
-    location_types_data = []
-    
-    for row in rows:
-        try:
-            location_id = int(row["id"])
-            lat = float(row["lat"])
-            lng = float(row["lng"])
-        except (ValueError, KeyError):
-            continue
-        
-        cursor.execute("""
-            INSERT INTO locations (
-                id, lat, lng, unverified, description, season_start, season_stop,
-                no_season, author, address, access, import_link, original_ids,
-                hidden, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            location_id,
-            lat,
-            lng,
-            parse_bool(row.get("unverified", "")),
-            row.get("description") or None,
-            row.get("season_start") or None,
-            row.get("season_stop") or None,
-            parse_bool(row.get("no_season", "")),
-            row.get("author") or None,
-            row.get("address") or None,
-            row.get("access") or None,
-            row.get("import_link") or None,
-            row.get("original_ids") or None,
-            parse_bool(row.get("hidden", "")),
-            row.get("created_at") or None,
-            row.get("updated_at") or None
-        ))
-        
-        # Add to R-tree data
-        rtree_data.append((location_id, lat, lat, lng, lng))
-        
-        # Parse type_ids (can be single id or comma-separated)
-        type_ids_str = row.get("type_ids", "").strip("[]")
-        if type_ids_str:
-            for tid in type_ids_str.split(","):
-                tid = tid.strip()
-                if tid:
-                    try:
-                        location_types_data.append((location_id, int(tid)))
-                    except ValueError:
-                        pass
-    
-    return len(rows), location_types_data
-
-
 def import_locations(conn: sqlite3.Connection, data_dir: Path) -> int:
-    """Import locations.csv into database."""
+    """Import locations.csv into database with memory-efficient chunked processing."""
     locations_file = data_dir / "locations.csv"
     if not locations_file.exists():
         log(f"ERROR: {locations_file} not found")
         return 0
     
     log(f"Importing locations from {locations_file}...")
+    log(f"  Using batch size of {BATCH_SIZE} for memory efficiency")
     
     # Disable triggers and foreign keys during bulk import for performance
     conn.execute("PRAGMA foreign_keys = OFF")
@@ -206,53 +154,123 @@ def import_locations(conn: sqlite3.Connection, data_dir: Path) -> int:
     
     cursor = conn.cursor()
     count = 0
-    batch_size = 10000
-    batch = []
-    rtree_data = []
-    location_types_data = []
+    rtree_count = 0
+    lt_count = 0
     
     with open(locations_file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         
+        batch_locations = []
+        batch_rtree = []
+        batch_lt = []
+        
         for row in reader:
-            batch.append(row)
+            try:
+                location_id = int(row["id"])
+                lat = float(row["lat"])
+                lng = float(row["lng"])
+            except (ValueError, KeyError):
+                continue
             
-            if len(batch) >= batch_size:
-                _, lt_data = import_locations_batch(conn, batch, rtree_data)
-                location_types_data.extend(lt_data)
-                count += len(batch)
-                batch = []
+            # Add to location batch
+            batch_locations.append((
+                location_id,
+                lat,
+                lng,
+                parse_bool(row.get("unverified", "")),
+                row.get("description") or None,
+                row.get("season_start") or None,
+                row.get("season_stop") or None,
+                parse_bool(row.get("no_season", "")),
+                row.get("author") or None,
+                row.get("address") or None,
+                row.get("access") or None,
+                row.get("import_link") or None,
+                row.get("original_ids") or None,
+                parse_bool(row.get("hidden", "")),
+                row.get("created_at") or None,
+                row.get("updated_at") or None
+            ))
+            
+            # Add to R-tree batch
+            batch_rtree.append((location_id, lat, lat, lng, lng))
+            
+            # Parse type_ids and add to location_types batch
+            type_ids_str = row.get("type_ids", "").strip("[]")
+            if type_ids_str:
+                for tid in type_ids_str.split(","):
+                    tid = tid.strip()
+                    if tid:
+                        try:
+                            batch_lt.append((location_id, int(tid)))
+                        except ValueError:
+                            pass
+            
+            # Process batch when it reaches the batch size
+            if len(batch_locations) >= BATCH_SIZE:
+                # Insert locations
+                cursor.executemany("""
+                    INSERT INTO locations (
+                        id, lat, lng, unverified, description, season_start, season_stop,
+                        no_season, author, address, access, import_link, original_ids,
+                        hidden, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, batch_locations)
+                
+                # Insert R-tree entries
+                cursor.executemany(
+                    "INSERT INTO locations_rtree (id, min_lat, max_lat, min_lng, max_lng) VALUES (?, ?, ?, ?, ?)",
+                    batch_rtree
+                )
+                
+                # Insert location_types
+                cursor.executemany(
+                    "INSERT OR IGNORE INTO location_types (location_id, type_id) VALUES (?, ?)",
+                    batch_lt
+                )
+                
+                # Commit and update counts
+                conn.commit()
+                count += len(batch_locations)
+                rtree_count += len(batch_rtree)
+                lt_count += len(batch_lt)
+                
+                # Clear batches to free memory
+                batch_locations = []
+                batch_rtree = []
+                batch_lt = []
                 
                 if count % 100000 == 0:
                     log(f"  Imported {count:,} locations...")
-                    conn.commit()
         
-        # Import remaining batch
-        if batch:
-            _, lt_data = import_locations_batch(conn, batch, rtree_data)
-            location_types_data.extend(lt_data)
-            count += len(batch)
+        # Process remaining batch
+        if batch_locations:
+            cursor.executemany("""
+                INSERT INTO locations (
+                    id, lat, lng, unverified, description, season_start, season_stop,
+                    no_season, author, address, access, import_link, original_ids,
+                    hidden, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, batch_locations)
+            
+            cursor.executemany(
+                "INSERT INTO locations_rtree (id, min_lat, max_lat, min_lng, max_lng) VALUES (?, ?, ?, ?, ?)",
+                batch_rtree
+            )
+            
+            cursor.executemany(
+                "INSERT OR IGNORE INTO location_types (location_id, type_id) VALUES (?, ?)",
+                batch_lt
+            )
+            
+            conn.commit()
+            count += len(batch_locations)
+            rtree_count += len(batch_rtree)
+            lt_count += len(batch_lt)
     
-    conn.commit()
     log(f"  Imported {count:,} locations")
-    
-    # Bulk insert R-tree data
-    log("  Building R-tree spatial index...")
-    cursor.executemany(
-        "INSERT INTO locations_rtree (id, min_lat, max_lat, min_lng, max_lng) VALUES (?, ?, ?, ?, ?)",
-        rtree_data
-    )
-    conn.commit()
-    log(f"  Indexed {len(rtree_data):,} locations in R-tree")
-    
-    # Bulk insert location_types
-    log("  Linking locations to types...")
-    cursor.executemany(
-        "INSERT OR IGNORE INTO location_types (location_id, type_id) VALUES (?, ?)",
-        location_types_data
-    )
-    conn.commit()
-    log(f"  Created {len(location_types_data):,} location-type links")
+    log(f"  Indexed {rtree_count:,} locations in R-tree")
+    log(f"  Created {lt_count:,} location-type links")
     
     # Recreate triggers and re-enable foreign keys
     log("  Recreating triggers...")
@@ -289,7 +307,9 @@ def optimize_database(conn: sqlite3.Connection) -> None:
     """Run optimization after import."""
     log("Optimizing database...")
     conn.execute("ANALYZE")
-    conn.execute("VACUUM")
+    log("  Analysis complete")
+    # Skip VACUUM on low-memory systems - it requires significant temp space
+    # conn.execute("VACUUM")
     conn.commit()
     log("  Optimization complete")
 
@@ -311,7 +331,7 @@ def main():
     args = parser.parse_args()
     
     log("=" * 50)
-    log("Falling Fruit Data Import")
+    log("Falling Fruit Data Import (Memory-Optimized)")
     log("=" * 50)
     
     # Create database
@@ -342,4 +362,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
