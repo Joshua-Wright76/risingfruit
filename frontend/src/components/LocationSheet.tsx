@@ -88,6 +88,7 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
       {/* Sheet */}
       <div
         ref={sheetRef}
+        data-testid="location-sheet"
         className={`absolute bottom-0 left-0 right-0 bg-surface-900 rounded-t-3xl shadow-2xl transform transition-transform duration-300 ease-out border-t border-surface-700 ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}

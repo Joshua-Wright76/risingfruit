@@ -39,7 +39,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
   const activeFilterCount = filters.categories.length + (filters.inSeasonOnly ? 1 : 0);
 
   return (
-    <div className="bg-surface-900 rounded-2xl shadow-lg border border-surface-700 overflow-hidden">
+    <div data-testid="filter-panel" className="bg-surface-900 rounded-2xl shadow-lg border border-surface-700 overflow-hidden">
       {/* Toggle button */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}

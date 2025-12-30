@@ -117,7 +117,7 @@ const unclusteredPointLayer: LayerProps = {
       // Default to leaf
       'marker-leaf',
     ],
-    'icon-size': 1,
+    'icon-size': 1.25,
     'icon-allow-overlap': true,
     'icon-anchor': 'center',
   },
@@ -277,16 +277,29 @@ export function ForagingMap() {
           ne_lng: mapBounds.getEast(),
         });
       }
+      
+      // Expose map for E2E testing (always expose in development)
+      // @ts-expect-error - exposing for E2E tests
+      window.__risingfruit_map = map;
     }
   }, [loadMarkerIcons]);
 
-  // Handle marker click
+  // Handle marker click - query features at click point without layer filter
   const handleClick = useCallback((e: MapMouseEvent) => {
-    const feature = e.features?.[0];
-    if (!feature) return;
-
     const map = mapRef.current?.getMap();
     if (!map) return;
+
+    // Query all features at the click point
+    const allFeatures = map.queryRenderedFeatures([e.point.x, e.point.y]);
+    
+    // Find features from our layers (clusters, unclustered-point, etc.)
+    const ourLayers = ['clusters', 'unclustered-point', 'unclustered-point-fallback'];
+    const features = allFeatures.filter(f => ourLayers.includes(f.layer?.id || ''));
+    
+    const feature = features[0];
+    if (!feature) {
+      return;
+    }
 
     // If it's a cluster, zoom into it
     if (feature.properties?.cluster) {
@@ -305,7 +318,8 @@ export function ForagingMap() {
       }
     } else {
       // It's an individual point, show the detail sheet
-      const locationId = feature.properties?.id;
+      // Note: GeoJSON properties are serialized as strings by Mapbox GL
+      const locationId = feature.properties?.id ? Number(feature.properties.id) : null;
       if (locationId) {
         setSelectedLocationId(locationId);
       }
