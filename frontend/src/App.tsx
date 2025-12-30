@@ -13,7 +13,7 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="h-screen w-screen">
+      <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
         <ForagingMap />
       </div>
     </QueryClientProvider>

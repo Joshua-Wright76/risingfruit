@@ -20,6 +20,7 @@ import { FilterPanel, type FilterState } from './FilterPanel';
 import { EmptyState } from './EmptyState';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { markerIcons } from './MarkerIcons';
+import { fruitIcons, getIconForTypes } from './FruitIcons';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -35,21 +36,27 @@ const INITIAL_VIEW = {
 function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
   return {
     type: 'FeatureCollection',
-    features: locations.map((loc) => ({
-      type: 'Feature' as const,
-      id: loc.id,
-      geometry: {
-        type: 'Point' as const,
-        coordinates: [loc.lng, loc.lat],
-      },
-      properties: {
+    features: locations.map((loc) => {
+      // Determine which icon to use based on type IDs
+      const fruitIcon = getIconForTypes(loc.type_ids);
+      return {
+        type: 'Feature' as const,
         id: loc.id,
-        description: loc.description,
-        access: loc.access,
-        type_ids: loc.type_ids,
-        unverified: loc.unverified,
-      },
-    })),
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [loc.lng, loc.lat],
+        },
+        properties: {
+          id: loc.id,
+          description: loc.description,
+          access: loc.access,
+          type_ids: loc.type_ids,
+          unverified: loc.unverified,
+          // Only include fruitIcon if it exists
+          ...(fruitIcon ? { fruitIcon } : {}),
+        },
+      };
+    }),
   };
 }
 
@@ -92,6 +99,7 @@ const clusterCountLayer: LayerProps = {
 };
 
 // Individual point style with custom icons
+// Uses fruit-specific icons when available, falls back to generic leaf
 const unclusteredPointLayer: LayerProps = {
   id: 'unclustered-point',
   type: 'symbol',
@@ -100,8 +108,13 @@ const unclusteredPointLayer: LayerProps = {
   layout: {
     'icon-image': [
       'case',
-      ['get', 'unverified'],
+      // If unverified, use unverified marker
+      ['==', ['get', 'unverified'], true],
       'marker-unverified',
+      // If has fruit icon, use it
+      ['has', 'fruitIcon'],
+      ['concat', 'fruit-', ['get', 'fruitIcon']],
+      // Default to leaf
       'marker-leaf',
     ],
     'icon-size': 1,
@@ -203,7 +216,8 @@ export function ForagingMap() {
 
   // Load custom marker icons
   const loadMarkerIcons = useCallback((map: mapboxgl.Map) => {
-    const iconEntries: [string, string][] = [
+    // Base marker icons
+    const baseIconEntries: [string, string][] = [
       ['marker-leaf', markerIcons.leaf],
       ['marker-flower', markerIcons.flower],
       ['marker-scissors', markerIcons.scissors],
@@ -212,10 +226,17 @@ export function ForagingMap() {
       ['marker-generic', markerIcons.generic],
     ];
 
-    let loadedCount = 0;
-    const totalIcons = iconEntries.length;
+    // Fruit-specific icons
+    const fruitIconEntries: [string, string][] = Object.entries(fruitIcons).map(
+      ([name, dataUri]) => [`fruit-${name}`, dataUri]
+    );
 
-    iconEntries.forEach(([name, dataUri]) => {
+    const allIconEntries = [...baseIconEntries, ...fruitIconEntries];
+
+    let loadedCount = 0;
+    const totalIcons = allIconEntries.length;
+
+    allIconEntries.forEach(([name, dataUri]) => {
       if (map.hasImage(name)) {
         loadedCount++;
         if (loadedCount === totalIcons) setIconsLoaded(true);
@@ -341,7 +362,7 @@ export function ForagingMap() {
   }
 
   return (
-    <div className="relative h-full w-full bg-surface-950">
+    <div className="relative bg-surface-950" style={{ width: '100%', height: '100%' }}>
       {/* Loading skeleton while map initializes */}
       {!mapLoaded && <LoadingSkeleton />}
 
@@ -355,6 +376,7 @@ export function ForagingMap() {
         onClick={handleClick}
         interactiveLayerIds={interactiveLayerIds}
         reuseMaps
+        style={{ width: '100%', height: '100%' }}
       >
         <GeolocateControl
           position="bottom-right"
