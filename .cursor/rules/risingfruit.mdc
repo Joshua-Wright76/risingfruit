@@ -1,0 +1,334 @@
+---
+description: Rising Fruit PWA - Mobile-first client for Falling Fruit foraging map
+globs: **/*.{ts,tsx,js,jsx,css,html,json,sh,yml,yaml}
+---
+
+# Rising Fruit PWA
+
+A Progressive Web App providing a mobile-first interface for the Falling Fruit urban foraging map. This project includes a self-hosted backend that syncs data from Falling Fruit's CSV exports, providing full control over data modeling and query performance.
+
+## Project Identity
+
+- **Name**: Rising Fruit
+- **Type**: PWA (Progressive Web App) + Backend Service
+- **Target**: Mobile-first, responsive to desktop
+- **Purpose**: Client interface for Falling Fruit open-source foraging database
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Rising Fruit PWA                          │
+│  (React + Vite + Tailwind + Mapbox GL)                          │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Rising Fruit Backend (EC2)                    │
+│  ┌─────────────┐    ┌──────────────┐    ┌─────────────────┐     │
+│  │ Data Sync   │───▶│  CSV Data    │───▶│  API Server     │     │
+│  │ Script      │    │  (locations, │    │  (future)       │     │
+│  └─────────────┘    │   types)     │    └─────────────────┘     │
+└─────────────────────────────────────────────────────────────────┘
+                              ▲
+                              │ Downloads
+                              │
+┌─────────────────────────────┴───────────────────────────────────┐
+│                    Falling Fruit Exports                         │
+│  - https://fallingfruit.org/locations.csv.bz2                   │
+│  - https://fallingfruit.org/types.csv.bz2                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Tech Stack
+
+### Frontend
+
+| Layer | Technology | Version |
+|-------|------------|---------|
+| Framework | React | 18+ |
+| Build Tool | Vite | 5+ |
+| Language | TypeScript | 5+ (strict mode) |
+| Styling | Tailwind CSS | 3+ |
+| Maps | Mapbox GL JS | 3+ |
+| PWA | vite-plugin-pwa | latest |
+| State/Cache | TanStack Query | 5+ |
+| Routing | React Router | 6+ |
+
+### Backend
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Runtime | Docker | Container orchestration |
+| Host | AWS EC2 | Production server |
+| Data Sync | Bash + curl + bzip2 | Download Falling Fruit exports |
+| CI/CD | GitHub Actions | Automated deployment |
+
+## Project Structure
+
+```
+risingfruit/
+├── .cursor/
+│   └── rules/
+│       └── risingfruit.mdc     # This file
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # EC2 deployment workflow
+├── backend/
+│   ├── scripts/
+│   │   └── sync-data.sh        # Download Falling Fruit CSVs
+│   ├── data/                   # Downloaded CSV files (gitignored)
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── docs/
+│   ├── api-reference.md        # Falling Fruit API Blueprint
+│   └── architecture.md         # System architecture
+├── src/                        # Frontend source (future)
+│   ├── components/
+│   ├── features/
+│   ├── hooks/
+│   ├── lib/
+│   ├── types/
+│   └── styles/
+├── .env.local                  # Local secrets (gitignored)
+└── .gitignore
+```
+
+## Data Sources
+
+The backend syncs data from Falling Fruit's public CSV exports:
+
+| File | URL | Description |
+|------|-----|-------------|
+| Locations | https://fallingfruit.org/locations.csv.bz2 | All foraging locations worldwide |
+| Types | https://fallingfruit.org/types.csv.bz2 | Plant/food type definitions |
+
+### Data Sync
+
+Run the sync script manually or via Docker:
+
+```bash
+# Local execution
+cd backend
+./scripts/sync-data.sh
+
+# Force re-download
+./scripts/sync-data.sh --force
+
+# Via Docker
+docker-compose up backend
+```
+
+## Backend Development
+
+### Docker Commands
+
+```bash
+cd backend
+
+# Build image
+docker-compose build
+
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+
+# Rebuild and restart
+docker-compose up -d --build
+```
+
+### Local Testing (without Docker)
+
+```bash
+cd backend
+
+# Ensure bzip2 is installed
+brew install bzip2  # macOS
+apt-get install bzip2  # Ubuntu
+
+# Run sync script
+DATA_DIR=./data ./scripts/sync-data.sh
+```
+
+## Deployment
+
+### GitHub Actions Workflow
+
+Deployment is automated via `.github/workflows/deploy.yml`:
+
+1. Triggered on push to `main` branch
+2. Copies backend files to EC2 via rsync
+3. Builds Docker image on EC2
+4. Starts container with docker-compose
+
+### Required GitHub Secrets
+
+Configure these in your repository settings:
+
+| Secret | Description |
+|--------|-------------|
+| `EC2_HOST` | EC2 hostname (e.g., `ec2-xx-xx-xx-xx.region.compute.amazonaws.com`) |
+| `EC2_USER` | SSH username (typically `ec2-user` or `ubuntu`) |
+| `EC2_SSH_KEY` | Private key contents for SSH access |
+
+### Manual Deployment
+
+```bash
+# SSH into EC2
+ssh -i your-key.pem ec2-user@your-ec2-host
+
+# Navigate to app directory
+cd ~/risingfruit/backend
+
+# Pull latest and restart
+docker-compose pull
+docker-compose up -d --build
+```
+
+## Frontend (Future)
+
+### Coding Conventions
+
+#### TypeScript
+
+- Use strict mode (`"strict": true` in tsconfig)
+- Prefer `interface` for object shapes, `type` for unions/intersections
+- Export types alongside their implementations
+- Use explicit return types for public functions
+
+```typescript
+interface Location {
+  id: number;
+  lat: number;
+  lng: number;
+  typeIds: number[];
+}
+
+export function formatLocation(location: Location): string {
+  return `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+}
+```
+
+#### React Components
+
+- Use functional components with hooks exclusively
+- Prefer named exports for components
+- Colocate component styles, tests, and types
+- Use descriptive, PascalCase names
+
+```typescript
+interface LocationCardProps {
+  location: Location;
+  onSelect?: (id: number) => void;
+}
+
+export function LocationCard({ location, onSelect }: LocationCardProps) {
+  // Implementation
+}
+```
+
+#### File Naming
+
+- Components: `PascalCase.tsx`
+- Hooks: `useCamelCase.ts`
+- Utilities: `camelCase.ts`
+- Types: `camelCase.types.ts` or inline
+- Constants: `SCREAMING_SNAKE_CASE`
+- Shell scripts: `kebab-case.sh`
+
+### Mobile-First Design Principles
+
+- Minimum touch target: 44x44px (Apple HIG)
+- Adequate spacing between interactive elements
+- Thumb-friendly bottom navigation
+- Responsive breakpoints (Tailwind defaults)
+
+### Performance Budget
+
+- First Contentful Paint: < 1.5s
+- Time to Interactive: < 3s
+- Largest Contentful Paint: < 2.5s
+- Bundle size (gzipped): < 200KB initial
+
+## Environment Variables
+
+```bash
+# .env.local (do not commit)
+
+# EC2 Deployment
+VITE_EC2_HOST=ec2-xx-xx-xx-xx.region.compute.amazonaws.com
+VITE_EC2_KEY=/path/to/keypair.pem
+
+# Frontend (future)
+VITE_API_BASE_URL=https://your-ec2-host/api
+VITE_MAPBOX_TOKEN=pk.your_mapbox_token_here
+```
+
+## Design System
+
+### Colors (Tailwind)
+
+```javascript
+// tailwind.config.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        // Primary - nature green
+        primary: {
+          50: '#f0fdf4',
+          500: '#22c55e',
+          600: '#16a34a',
+          700: '#15803d',
+        },
+        // Accent - fruit orange
+        accent: {
+          50: '#fff7ed',
+          500: '#f97316',
+          600: '#ea580c',
+        },
+      },
+    },
+  },
+};
+```
+
+### Icons
+
+Use Lucide React for consistent iconography:
+
+```typescript
+import { MapPin, Leaf, Search, Plus } from 'lucide-react';
+```
+
+## Git Conventions
+
+### Branch Naming
+
+- `feature/description` - New features
+- `fix/description` - Bug fixes
+- `chore/description` - Maintenance tasks
+
+### Commit Messages
+
+Follow Conventional Commits:
+
+```
+feat: add location clustering on map
+fix: resolve offline sync issue
+chore: update dependencies
+```
+
+## External Resources
+
+- Falling Fruit Website: https://fallingfruit.org/
+- Falling Fruit GitHub: https://github.com/falling-fruit/falling-fruit
+- Mapbox GL JS Docs: https://docs.mapbox.com/mapbox-gl-js/
+- TanStack Query Docs: https://tanstack.com/query/latest
+- Vite PWA Plugin: https://vite-pwa-org.netlify.app/
+- Docker Docs: https://docs.docker.com/

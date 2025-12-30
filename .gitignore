@@ -1,0 +1,45 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Backend data (downloaded CSV files)
+backend/data/
+*.csv
+*.csv.bz2
+
+# Node modules (for future frontend)
+node_modules/
+dist/
+.cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build outputs
+build/
+.next/
+out/
+
+# Test coverage
+coverage/
+
+# Docker
+.docker/
+
+# SSH keys (never commit these!)
+*.pem
+*.key
+id_rsa*

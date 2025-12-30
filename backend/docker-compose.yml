@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: risingfruit-backend
+    restart: unless-stopped
+    volumes:
+      # Persist downloaded data outside container
+      - ./data:/app/data
+    environment:
+      - TZ=UTC
+    # Future: expose API port
+    # ports:
+    #   - "8000:8000"
+    healthcheck:
+      test: ["CMD", "test", "-f", "/app/data/locations.csv"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Future: Add database service
+  # db:
+  #   image: postgres:16-alpine
+  #   container_name: risingfruit-db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: risingfruit
+  #     POSTGRES_USER: risingfruit
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# volumes:
+#   postgres_data:
+
