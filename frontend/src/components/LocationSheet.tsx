@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { X, Navigation, Calendar, Lock, Leaf, ExternalLink, Share2, Check, Copy } from 'lucide-react';
 import { getLocation } from '../lib/api';
@@ -24,15 +25,6 @@ function getDirectionsUrl(lat: number, lng: number): string {
     return `maps://maps.apple.com/?daddr=${lat},${lng}`;
   }
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-}
-
-function getAccessIcon(access: string | null) {
-  if (!access) return null;
-  const lower = access.toLowerCase();
-  if (lower.includes('private')) {
-    return <Lock className="h-4 w-4 text-accent-400" />;
-  }
-  return null;
 }
 
 export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
@@ -76,58 +68,113 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
 
   const isOpen = locationId !== null;
 
-  return (
+  // Use React Portal to render outside the Map container hierarchy
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
-        className={`absolute inset-0 bg-black/50 transition-opacity duration-300 pointer-events-none ${
-          isOpen ? 'opacity-100' : 'opacity-0'
-        }`}
+        className="fixed inset-0 bg-black/50 transition-opacity duration-300 pointer-events-none"
+        style={{ 
+          zIndex: 9998,
+          opacity: isOpen ? 1 : 0 
+        }}
       />
 
       {/* Sheet */}
       <div
         ref={sheetRef}
         data-testid="location-sheet"
-        className={`absolute bottom-0 left-0 right-0 bg-surface-900 rounded-t-3xl shadow-2xl transform transition-transform duration-300 ease-out border-t border-surface-700 ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        style={{ maxHeight: '70vh' }}
+        className="rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out"
+        style={{ 
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          maxHeight: '70vh',
+          minHeight: '200px',
+          zIndex: 9999,
+          transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
+          backgroundColor: '#171717',
+          borderTop: '1px solid #404040',
+          borderTopLeftRadius: '24px',
+          borderTopRightRadius: '24px',
+        }}
       >
         {/* Handle */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="w-10 h-1 bg-surface-600 rounded-full" />
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '12px', paddingBottom: '8px' }}>
+          <div style={{ width: '40px', height: '4px', backgroundColor: '#525252', borderRadius: '9999px' }} />
         </div>
 
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface-800 transition-colors"
+          data-testid="location-sheet-close-button"
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            padding: '8px',
+            borderRadius: '9999px',
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer'
+          }}
           aria-label="Close"
         >
-          <X className="h-5 w-5 text-surface-400" />
+          <X style={{ width: '20px', height: '20px', color: '#a3a3a3' }} />
         </button>
 
         {/* Content */}
-        <div className="px-6 pb-8 pt-2 overflow-y-auto" style={{ maxHeight: 'calc(70vh - 60px)' }}>
+        <div style={{ padding: '8px 24px 32px 24px', overflowY: 'auto', maxHeight: 'calc(70vh - 60px)' }}>
           {isLoading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-3 border-primary-500 border-t-transparent" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 0' }}>
+              <div style={{ 
+                width: '32px', 
+                height: '32px', 
+                border: '3px solid #22c55e',
+                borderTopColor: 'transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
 
           {error && (
-            <div className="text-center py-12">
-              <p className="text-red-400">Failed to load location details</p>
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <p style={{ color: '#f87171', margin: 0 }}>Failed to load location details</p>
             </div>
           )}
 
           {location && <LocationContent location={location} />}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
+
+// Style constants for the sheet content
+const styles = {
+  colors: {
+    surface50: '#fafafa',
+    surface200: '#e5e5e5',
+    surface300: '#d4d4d4',
+    surface400: '#a3a3a3',
+    surface500: '#737373',
+    surface600: '#525252',
+    surface800: '#262626',
+    primary400: '#4ade80',
+    primary500: '#22c55e',
+    primary600: '#16a34a',
+    primary800: '#166534',
+    primary900: '#14532d',
+    accent300: '#fdba74',
+    accent400: '#fb923c',
+    accent700: '#c2410c',
+    accent900: '#7c2d12',
+  }
+};
 
 function LocationContent({ location }: { location: LocationDetail }) {
   const primaryType = location.types[0];
@@ -140,19 +187,16 @@ function LocationContent({ location }: { location: LocationDetail }) {
       url: `${window.location.origin}?location=${location.id}`,
     };
 
-    // Try Web Share API first (mobile)
     if (navigator.share && navigator.canShare?.(shareData)) {
       try {
         await navigator.share(shareData);
         setShareStatus('shared');
       } catch (err) {
-        // User cancelled or error
         if ((err as Error).name !== 'AbortError') {
           console.error('Share failed:', err);
         }
       }
     } else {
-      // Fallback to clipboard
       try {
         await navigator.clipboard.writeText(shareData.url);
         setShareStatus('copied');
@@ -160,67 +204,96 @@ function LocationContent({ location }: { location: LocationDetail }) {
         console.error('Copy failed:', err);
       }
     }
-
-    // Reset status after 2 seconds
     setTimeout(() => setShareStatus('idle'), 2000);
   }, [location, primaryType]);
   
   return (
-    <div className="space-y-5">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-12 h-12 bg-primary-900/50 rounded-xl flex items-center justify-center">
-          <Leaf className="h-6 w-6 text-primary-400" />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ 
+          flexShrink: 0, 
+          width: '48px', 
+          height: '48px', 
+          backgroundColor: `${styles.colors.primary900}80`,
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <Leaf style={{ width: '24px', height: '24px', color: styles.colors.primary400 }} />
         </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-semibold text-surface-50 truncate">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2 style={{ 
+            fontSize: '20px', 
+            fontWeight: 600, 
+            color: styles.colors.surface50,
+            margin: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
             {primaryType?.en_name || 'Unknown Type'}
           </h2>
           {primaryType?.scientific_name && (
-            <p className="text-sm text-surface-500 italic truncate">
+            <p style={{ 
+              fontSize: '14px', 
+              color: styles.colors.surface500, 
+              fontStyle: 'italic',
+              margin: '4px 0 0 0',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
               {primaryType.scientific_name}
             </p>
           )}
         </div>
-        {/* Share button */}
         <button
           onClick={handleShare}
-          className="flex-shrink-0 p-2 rounded-lg hover:bg-surface-800 transition-colors"
+          style={{ 
+            flexShrink: 0, 
+            padding: '8px', 
+            borderRadius: '8px',
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer'
+          }}
           aria-label="Share location"
         >
-          {shareStatus === 'idle' && <Share2 className="h-5 w-5 text-surface-400" />}
-          {shareStatus === 'copied' && <Copy className="h-5 w-5 text-primary-400" />}
-          {shareStatus === 'shared' && <Check className="h-5 w-5 text-primary-400" />}
+          {shareStatus === 'idle' && <Share2 style={{ width: '20px', height: '20px', color: styles.colors.surface400 }} />}
+          {shareStatus === 'copied' && <Copy style={{ width: '20px', height: '20px', color: styles.colors.primary400 }} />}
+          {shareStatus === 'shared' && <Check style={{ width: '20px', height: '20px', color: styles.colors.primary400 }} />}
         </button>
       </div>
 
       {/* Description */}
       {location.description && (
-        <p className="text-surface-300 leading-relaxed">
+        <p style={{ color: styles.colors.surface300, lineHeight: 1.6, margin: 0 }}>
           {location.description}
         </p>
       )}
 
       {/* Info grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         {/* Season */}
-        <div className="bg-surface-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Calendar className="h-4 w-4 text-primary-400" />
-            <span className="text-xs font-medium text-surface-500 uppercase tracking-wide">Season</span>
+        <div style={{ backgroundColor: styles.colors.surface800, borderRadius: '12px', padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <Calendar style={{ width: '16px', height: '16px', color: styles.colors.primary400 }} />
+            <span style={{ fontSize: '12px', fontWeight: 500, color: styles.colors.surface500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Season</span>
           </div>
-          <p className="text-sm font-medium text-surface-200">
+          <p style={{ fontSize: '14px', fontWeight: 500, color: styles.colors.surface200, margin: 0 }}>
             {formatSeason(location.season_start, location.season_stop, location.no_season)}
           </p>
         </div>
 
         {/* Access */}
-        <div className="bg-surface-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-1">
-            {getAccessIcon(location.access) || <Lock className="h-4 w-4 text-surface-500" />}
-            <span className="text-xs font-medium text-surface-500 uppercase tracking-wide">Access</span>
+        <div style={{ backgroundColor: styles.colors.surface800, borderRadius: '12px', padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <Lock style={{ width: '16px', height: '16px', color: location.access?.toLowerCase().includes('private') ? styles.colors.accent400 : styles.colors.surface500 }} />
+            <span style={{ fontSize: '12px', fontWeight: 500, color: styles.colors.surface500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Access</span>
           </div>
-          <p className="text-sm font-medium text-surface-200">
+          <p style={{ fontSize: '14px', fontWeight: 500, color: styles.colors.surface200, margin: 0 }}>
             {location.access || 'Unknown'}
           </p>
         </div>
@@ -229,12 +302,19 @@ function LocationContent({ location }: { location: LocationDetail }) {
       {/* Additional types */}
       {location.types.length > 1 && (
         <div>
-          <p className="text-xs font-medium text-surface-500 uppercase tracking-wide mb-2">Also contains</p>
-          <div className="flex flex-wrap gap-2">
+          <p style={{ fontSize: '12px', fontWeight: 500, color: styles.colors.surface500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Also contains</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {location.types.slice(1).map((type) => (
               <span
                 key={type.id}
-                className="px-3 py-1 bg-primary-900/50 text-primary-300 rounded-full text-sm border border-primary-800"
+                style={{
+                  padding: '4px 12px',
+                  backgroundColor: `${styles.colors.primary900}80`,
+                  color: styles.colors.primary400,
+                  borderRadius: '9999px',
+                  fontSize: '14px',
+                  border: `1px solid ${styles.colors.primary800}`
+                }}
               >
                 {type.en_name}
               </span>
@@ -245,30 +325,48 @@ function LocationContent({ location }: { location: LocationDetail }) {
 
       {/* Verification status */}
       {location.unverified && (
-        <div className="bg-accent-900/30 border border-accent-700 rounded-xl p-3">
-          <p className="text-sm text-accent-300">
+        <div style={{ 
+          backgroundColor: `${styles.colors.accent900}4d`, 
+          border: `1px solid ${styles.colors.accent700}`,
+          borderRadius: '12px',
+          padding: '12px'
+        }}>
+          <p style={{ fontSize: '14px', color: styles.colors.accent300, margin: 0 }}>
             ⚠️ This location has not been verified
           </p>
         </div>
       )}
 
       {/* Actions */}
-      <div className="pt-2">
+      <div style={{ paddingTop: '8px' }}>
         <a
           href={getDirectionsUrl(location.lat, location.lng)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-3.5 bg-primary-600 hover:bg-primary-500 text-white font-medium rounded-xl transition-colors"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            width: '100%',
+            padding: '14px',
+            backgroundColor: styles.colors.primary600,
+            color: 'white',
+            fontWeight: 500,
+            borderRadius: '12px',
+            textDecoration: 'none',
+            boxSizing: 'border-box'
+          }}
         >
-          <Navigation className="h-5 w-5" />
+          <Navigation style={{ width: '20px', height: '20px' }} />
           Get Directions
-          <ExternalLink className="h-4 w-4 opacity-70" />
+          <ExternalLink style={{ width: '16px', height: '16px', opacity: 0.7 }} />
         </a>
       </div>
 
       {/* Meta info */}
       {location.author && (
-        <p className="text-xs text-surface-600 text-center">
+        <p style={{ fontSize: '12px', color: styles.colors.surface600, textAlign: 'center', margin: 0 }}>
           Added by {location.author}
         </p>
       )}

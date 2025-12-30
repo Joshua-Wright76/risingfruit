@@ -284,22 +284,25 @@ export function ForagingMap() {
     }
   }, [loadMarkerIcons]);
 
-  // Handle marker click - query features at click point without layer filter
+  // Handle marker click - query features in a bounding box for better touch targets
   const handleClick = useCallback((e: MapMouseEvent) => {
     const map = mapRef.current?.getMap();
     if (!map) return;
 
-    // Query all features at the click point
-    const allFeatures = map.queryRenderedFeatures([e.point.x, e.point.y]);
+    // Query features in a 20px bounding box around the click point
+    const clickTolerance = 20;
+    const bbox: [[number, number], [number, number]] = [
+      [e.point.x - clickTolerance, e.point.y - clickTolerance],
+      [e.point.x + clickTolerance, e.point.y + clickTolerance]
+    ];
+    const allFeatures = map.queryRenderedFeatures(bbox);
     
     // Find features from our layers (clusters, unclustered-point, etc.)
     const ourLayers = ['clusters', 'unclustered-point', 'unclustered-point-fallback'];
     const features = allFeatures.filter(f => ourLayers.includes(f.layer?.id || ''));
     
     const feature = features[0];
-    if (!feature) {
-      return;
-    }
+    if (!feature) return;
 
     // If it's a cluster, zoom into it
     if (feature.properties?.cluster) {
@@ -318,7 +321,6 @@ export function ForagingMap() {
       }
     } else {
       // It's an individual point, show the detail sheet
-      // Note: GeoJSON properties are serialized as strings by Mapbox GL
       const locationId = feature.properties?.id ? Number(feature.properties.id) : null;
       if (locationId) {
         setSelectedLocationId(locationId);
