@@ -12,15 +12,101 @@ interface FilterPanelProps {
 }
 
 const CATEGORIES = [
-  { id: 'forager', label: 'Forager', icon: Leaf, description: 'Edible plants' },
-  { id: 'honeybee', label: 'Honeybee', icon: Flower2, description: 'Bee forage' },
-  { id: 'grafter', label: 'Grafter', icon: Scissors, description: 'Grafting stock' },
-  { id: 'freegan', label: 'Freegan', icon: ShoppingBag, description: 'Free food' },
+  { id: 'forager', label: 'Forager', icon: Leaf },
+  { id: 'honeybee', label: 'Honeybee', icon: Flower2 },
+  { id: 'grafter', label: 'Grafter', icon: Scissors },
+  { id: 'freegan', label: 'Freegan', icon: ShoppingBag },
 ] as const;
 
 function getCurrentMonth(): string {
   return new Date().toLocaleString('en-US', { month: 'long' });
 }
+
+const styles = {
+  container: {
+    backgroundColor: '#171717',
+    borderRadius: '16px',
+    border: '1px solid #404040',
+    overflow: 'hidden',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+  },
+  toggleButton: {
+    width: '100%',
+    padding: '12px 16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+  badge: {
+    backgroundColor: '#22c55e',
+    color: 'white',
+    fontSize: '12px',
+    fontWeight: 500,
+    padding: '2px 8px',
+    borderRadius: '9999px',
+  },
+  expandedContent: {
+    padding: '0 16px 16px 16px',
+    borderTop: '1px solid #404040',
+  },
+  sectionTitle: {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#737373',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    marginBottom: '8px',
+    marginTop: '16px',
+  },
+  categoryGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '8px',
+  },
+  categoryButton: (isActive: boolean) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 12px',
+    borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: 500,
+    border: 'none',
+    cursor: 'pointer',
+    backgroundColor: isActive ? '#16a34a' : '#262626',
+    color: isActive ? 'white' : '#d4d4d4',
+    transition: 'all 0.15s ease',
+  } as React.CSSProperties),
+  seasonButton: (isActive: boolean) => ({
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 16px',
+    borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: 500,
+    border: 'none',
+    cursor: 'pointer',
+    backgroundColor: isActive ? '#ea580c' : '#262626',
+    color: isActive ? 'white' : '#d4d4d4',
+    textAlign: 'left' as const,
+    transition: 'all 0.15s ease',
+  } as React.CSSProperties),
+  clearButton: {
+    width: '100%',
+    padding: '8px',
+    marginTop: '12px',
+    fontSize: '14px',
+    color: '#737373',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+  },
+};
 
 export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -39,94 +125,70 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
   const activeFilterCount = filters.categories.length + (filters.inSeasonOnly ? 1 : 0);
 
   return (
-    <div data-testid="filter-panel" className="bg-surface-900 rounded-2xl shadow-lg border border-surface-700 overflow-hidden">
+    <div data-testid="filter-panel" style={styles.container}>
       {/* Toggle button */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-800 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-surface-200">Filters</span>
+      <button onClick={() => setIsExpanded(!isExpanded)} style={styles.toggleButton}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontWeight: 500, color: '#e5e5e5' }}>Filters</span>
           {activeFilterCount > 0 && (
-            <span className="bg-primary-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
-              {activeFilterCount}
-            </span>
+            <span style={styles.badge}>{activeFilterCount}</span>
           )}
         </div>
         {isExpanded ? (
-          <ChevronUp className="h-5 w-5 text-surface-400" />
+          <ChevronUp style={{ width: '20px', height: '20px', color: '#a3a3a3' }} />
         ) : (
-          <ChevronDown className="h-5 w-5 text-surface-400" />
+          <ChevronDown style={{ width: '20px', height: '20px', color: '#a3a3a3' }} />
         )}
       </button>
 
       {/* Expanded panel */}
-      <div
-        className={`overflow-hidden transition-all duration-300 ease-out ${
-          isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
-        <div className="px-4 pb-4 space-y-4 border-t border-surface-700 pt-4">
+      {isExpanded && (
+        <div style={styles.expandedContent}>
           {/* Categories */}
-          <div>
-            <p className="text-xs font-medium text-surface-500 uppercase tracking-wide mb-2">
-              Categories
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {CATEGORIES.map(({ id, label, icon: Icon }) => {
-                const isActive = filters.categories.includes(id);
-                return (
-                  <button
-                    key={id}
-                    onClick={() => toggleCategory(id)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      isActive
-                        ? 'bg-primary-600 text-white shadow-md shadow-primary-900/50'
-                        : 'bg-surface-800 text-surface-300 hover:bg-surface-700'
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-surface-500'}`} />
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+          <p style={styles.sectionTitle}>Categories</p>
+          <div style={styles.categoryGrid}>
+            {CATEGORIES.map(({ id, label, icon: Icon }) => {
+              const isActive = filters.categories.includes(id);
+              return (
+                <button
+                  key={id}
+                  onClick={() => toggleCategory(id)}
+                  style={styles.categoryButton(isActive)}
+                >
+                  <Icon style={{ width: '16px', height: '16px', color: isActive ? 'white' : '#737373' }} />
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Season filter */}
-          <div>
-            <p className="text-xs font-medium text-surface-500 uppercase tracking-wide mb-2">
-              Season
-            </p>
-            <button
-              onClick={toggleSeasonFilter}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                filters.inSeasonOnly
-                  ? 'bg-accent-600 text-white shadow-md shadow-accent-900/50'
-                  : 'bg-surface-800 text-surface-300 hover:bg-surface-700'
-              }`}
-            >
-              <Calendar className={`h-5 w-5 ${filters.inSeasonOnly ? 'text-white' : 'text-surface-500'}`} />
-              <div className="flex-1 text-left">
-                <p>In season now</p>
-                <p className={`text-xs ${filters.inSeasonOnly ? 'text-white/70' : 'text-surface-500'}`}>
-                  Showing plants for {getCurrentMonth()}
-                </p>
-              </div>
-            </button>
-          </div>
+          <p style={styles.sectionTitle}>Season</p>
+          <button onClick={toggleSeasonFilter} style={styles.seasonButton(filters.inSeasonOnly)}>
+            <Calendar style={{ width: '20px', height: '20px', color: filters.inSeasonOnly ? 'white' : '#737373' }} />
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0 }}>In season now</p>
+              <p style={{ 
+                margin: '2px 0 0 0', 
+                fontSize: '12px', 
+                color: filters.inSeasonOnly ? 'rgba(255,255,255,0.7)' : '#737373' 
+              }}>
+                Showing plants for {getCurrentMonth()}
+              </p>
+            </div>
+          </button>
 
           {/* Clear button */}
           {activeFilterCount > 0 && (
             <button
               onClick={() => onFilterChange({ categories: [], inSeasonOnly: false })}
-              className="w-full py-2 text-sm text-surface-500 hover:text-surface-300 transition-colors"
+              style={styles.clearButton}
             >
               Clear all filters
             </button>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

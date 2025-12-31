@@ -431,7 +431,16 @@ export function ForagingMap() {
       </Map>
 
       {/* Search and filters */}
-      <div className="absolute top-4 left-4 right-4 space-y-3 z-10">
+      <div style={{ 
+        position: 'absolute', 
+        top: '16px', 
+        left: '16px', 
+        right: '16px', 
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
+      }}>
         <SearchBar
           selectedTypes={selectedTypes}
           onSelectType={handleSelectType}

@@ -7,10 +7,10 @@ const svgToDataUri = (svg: string): string =>
 
 // Wrap SVG content in a white circle background with optional green border
 const wrapInCircle = (svgContent: string, inSeason: boolean): string => {
-  const strokeColor = inSeason ? '#22c55e' : '#a3a3a3'; // primary-500 or surface-400
-  const strokeWidth = inSeason ? '3' : '1.5';
+  const strokeColor = inSeason ? '#22c55e' : '#6b7280'; // primary-500 or gray-500
+  const strokeWidth = inSeason ? '5' : '3';
   return `<svg width="40" height="40" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="40" cy="40" r="36" fill="white" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>
+  <circle cx="40" cy="40" r="35" fill="white" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>
   <g transform="translate(8, 8)">${svgContent}</g>
 </svg>`;
 };
@@ -333,39 +333,211 @@ const thymeSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xm
   <ellipse cx="40" cy="36" rx="3" ry="2" fill="#8FBC8F" stroke="#556B2F" stroke-width="1"/>
 </svg>`;
 
+// Aloe Vera
+const aloeVeraSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M 32 48 L 30 40 Q 28 24 32 16 Q 36 24 34 40 L 32 48 Z" fill="#7CB342" stroke="#558B2F" stroke-width="2"/>
+  <path d="M 28 46 L 26 38 Q 22 28 20 22 Q 24 26 28 34 L 28 46 Z" fill="#8FBC8F" stroke="#558B2F" stroke-width="2"/>
+  <path d="M 36 46 L 38 34 Q 40 26 44 22 Q 42 28 38 38 L 36 46 Z" fill="#8FBC8F" stroke="#558B2F" stroke-width="2"/>
+  <line x1="30" y1="22" x2="28" y2="20" stroke="#558B2F" stroke-width="1"/>
+  <line x1="34" y1="22" x2="36" y2="20" stroke="#558B2F" stroke-width="1"/>
+  <line x1="30" y1="30" x2="28" y2="28" stroke="#558B2F" stroke-width="1"/>
+  <line x1="34" y1="30" x2="36" y2="28" stroke="#558B2F" stroke-width="1"/>
+</svg>`;
+
+// Apple
+const appleSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="36" r="15" fill="#DC143C" stroke="#8B0000" stroke-width="2"/>
+  <path d="M 28 22 Q 28 20 30 19" fill="none" stroke="#8B0000" stroke-width="1.5"/>
+  <rect x="30" y="16" width="2.5" height="6" fill="#8B4513" rx="1"/>
+  <path d="M 32 16 Q 36 14 40 16 Q 42 18 40 20 Q 38 20 36 18" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+  <ellipse cx="26" cy="32" rx="4" ry="6" fill="#FF6B6B" opacity="0.4"/>
+</svg>`;
+
+// Blackberry
+const blackberrySvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="32" cy="36" rx="10" ry="13" fill="#2F4F4F" stroke="#191970" stroke-width="2"/>
+  <circle cx="28" cy="30" r="3" fill="#4B0082" stroke="#191970" stroke-width="1"/>
+  <circle cx="36" cy="30" r="3" fill="#4B0082" stroke="#191970" stroke-width="1"/>
+  <circle cx="32" cy="34" r="3" fill="#4B0082" stroke="#191970" stroke-width="1"/>
+  <circle cx="28" cy="38" r="3" fill="#4B0082" stroke="#191970" stroke-width="1"/>
+  <circle cx="36" cy="38" r="3" fill="#4B0082" stroke="#191970" stroke-width="1"/>
+  <circle cx="32" cy="42" r="3" fill="#4B0082" stroke="#191970" stroke-width="1"/>
+  <path d="M 32 23 Q 34 20 36 18" stroke="#228B22" stroke-width="2" fill="none"/>
+  <ellipse cx="36" cy="18" rx="5" ry="2.5" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+</svg>`;
+
+// Chayote
+const chayoteSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M 32 20 Q 24 22 20 30 Q 18 38 24 46 Q 32 50 40 46 Q 46 38 44 30 Q 40 22 32 20 Z" fill="#9ACD32" stroke="#6B8E23" stroke-width="2"/>
+  <path d="M 32 20 Q 34 16 38 16" stroke="#228B22" stroke-width="2" fill="none"/>
+  <path d="M 38 16 Q 40 16 42 18 Q 42 20 40 22" stroke="#228B22" stroke-width="1.5" fill="none"/>
+  <line x1="26" y1="28" x2="26" y2="44" stroke="#7CB342" stroke-width="1" opacity="0.5"/>
+  <line x1="30" y1="26" x2="30" y2="46" stroke="#7CB342" stroke-width="1" opacity="0.5"/>
+  <line x1="34" y1="26" x2="34" y2="46" stroke="#7CB342" stroke-width="1" opacity="0.5"/>
+  <line x1="38" y1="28" x2="38" y2="44" stroke="#7CB342" stroke-width="1" opacity="0.5"/>
+</svg>`;
+
+// Dragonfruit
+const dragonfruitSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="32" cy="36" rx="13" ry="15" fill="#FF69B4" stroke="#C71585" stroke-width="2"/>
+  <path d="M 26 20 L 28 16 L 30 20" stroke="#7CB342" stroke-width="2" fill="none"/>
+  <path d="M 32 18 L 34 14 L 36 18" stroke="#7CB342" stroke-width="2" fill="none"/>
+  <path d="M 38 20 L 40 16 L 42 20" stroke="#7CB342" stroke-width="2" fill="none"/>
+  <circle cx="28" cy="32" r="1.5" fill="#2F4F4F"/>
+  <circle cx="34" cy="30" r="1.5" fill="#2F4F4F"/>
+  <circle cx="36" cy="34" r="1.5" fill="#2F4F4F"/>
+  <circle cx="30" cy="38" r="1.5" fill="#2F4F4F"/>
+  <circle cx="36" cy="40" r="1.5" fill="#2F4F4F"/>
+  <circle cx="32" cy="44" r="1.5" fill="#2F4F4F"/>
+</svg>`;
+
+// Japanese Persimmon
+const japanesePersimmonSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="36" r="14" fill="#FF8C00" stroke="#FF6347" stroke-width="2"/>
+  <path d="M 26 22 L 28 20 L 32 22 L 36 20 L 38 22" stroke="#8B4513" stroke-width="2" fill="none"/>
+  <circle cx="28" cy="22" r="3" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+  <circle cx="32" cy="22" r="3" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+  <circle cx="36" cy="22" r="3" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+  <line x1="32" y1="26" x2="32" y2="48" stroke="#CD853F" stroke-width="1" opacity="0.3"/>
+  <line x1="24" y1="36" x2="40" y2="36" stroke="#CD853F" stroke-width="1" opacity="0.3"/>
+</svg>`;
+
+// Lavender
+const lavenderSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <line x1="26" y1="48" x2="26" y2="26" stroke="#6B8E23" stroke-width="2"/>
+  <rect x="24" y="16" width="4" height="10" fill="#9370DB" stroke="#8B008B" stroke-width="1.5" rx="2"/>
+  <line x1="24" y1="18" x2="22" y2="16" stroke="#8B008B" stroke-width="1"/>
+  <line x1="28" y1="18" x2="30" y2="16" stroke="#8B008B" stroke-width="1"/>
+  <line x1="32" y1="48" x2="32" y2="24" stroke="#6B8E23" stroke-width="2"/>
+  <rect x="30" y="14" width="4" height="10" fill="#9370DB" stroke="#8B008B" stroke-width="1.5" rx="2"/>
+  <line x1="30" y1="16" x2="28" y2="14" stroke="#8B008B" stroke-width="1"/>
+  <line x1="34" y1="16" x2="36" y2="14" stroke="#8B008B" stroke-width="1"/>
+  <line x1="38" y1="48" x2="38" y2="26" stroke="#6B8E23" stroke-width="2"/>
+  <rect x="36" y="16" width="4" height="10" fill="#9370DB" stroke="#8B008B" stroke-width="1.5" rx="2"/>
+  <line x1="36" y1="18" x2="34" y2="16" stroke="#8B008B" stroke-width="1"/>
+  <line x1="40" y1="18" x2="42" y2="16" stroke="#8B008B" stroke-width="1"/>
+</svg>`;
+
+// Papaya
+const papayaSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="32" cy="34" rx="12" ry="16" fill="#FF8C00" stroke="#FF6347" stroke-width="2"/>
+  <path d="M 32 18 Q 34 14 36 12" stroke="#228B22" stroke-width="2" fill="none"/>
+  <ellipse cx="36" cy="12" rx="5" ry="2.5" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+  <ellipse cx="32" cy="34" rx="6" ry="10" fill="#FFB347" opacity="0.7"/>
+  <circle cx="30" cy="30" r="2" fill="#2F4F4F" opacity="0.8"/>
+  <circle cx="34" cy="32" r="2" fill="#2F4F4F" opacity="0.8"/>
+  <circle cx="30" cy="36" r="2" fill="#2F4F4F" opacity="0.8"/>
+  <circle cx="34" cy="38" r="2" fill="#2F4F4F" opacity="0.8"/>
+  <circle cx="32" cy="42" r="2" fill="#2F4F4F" opacity="0.8"/>
+</svg>`;
+
+// Passionfruit (Purple)
+const passionfruitSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="34" r="14" fill="#8B008B" stroke="#4B0082" stroke-width="2"/>
+  <path d="M 32 20 Q 34 16 38 16" stroke="#228B22" stroke-width="2" fill="none"/>
+  <ellipse cx="38" cy="16" rx="5" ry="2.5" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+  <circle cx="28" cy="30" r="1.5" fill="#FFD700"/>
+  <circle cx="36" cy="30" r="1.5" fill="#FFD700"/>
+  <circle cx="32" cy="34" r="1.5" fill="#FFD700"/>
+  <circle cx="28" cy="38" r="1.5" fill="#FFD700"/>
+  <circle cx="36" cy="38" r="1.5" fill="#FFD700"/>
+  <circle cx="32" cy="42" r="1.5" fill="#FFD700"/>
+</svg>`;
+
+// Prickly Pear
+const pricklyPearSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="32" cy="36" rx="10" ry="14" fill="#9ACD32" stroke="#6B8E23" stroke-width="2"/>
+  <line x1="26" y1="26" x2="24" y2="22" stroke="#8B4513" stroke-width="1.5"/>
+  <line x1="32" y1="24" x2="32" y2="20" stroke="#8B4513" stroke-width="1.5"/>
+  <line x1="38" y1="26" x2="40" y2="22" stroke="#8B4513" stroke-width="1.5"/>
+  <line x1="24" y1="36" x2="20" y2="36" stroke="#8B4513" stroke-width="1.5"/>
+  <line x1="40" y1="36" x2="44" y2="36" stroke="#8B4513" stroke-width="1.5"/>
+  <line x1="26" y1="46" x2="24" y2="50" stroke="#8B4513" stroke-width="1.5"/>
+  <line x1="38" y1="46" x2="40" y2="50" stroke="#8B4513" stroke-width="1.5"/>
+  <circle cx="28" cy="32" r="1.5" fill="#FFD700"/>
+  <circle cx="36" cy="34" r="1.5" fill="#FFD700"/>
+  <circle cx="32" cy="40" r="1.5" fill="#FFD700"/>
+</svg>`;
+
+// Sapote
+const sapoteSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="36" r="14" fill="#8B4513" stroke="#654321" stroke-width="2"/>
+  <path d="M 32 22 Q 34 18 38 18" stroke="#228B22" stroke-width="2" fill="none"/>
+  <ellipse cx="38" cy="18" rx="6" ry="3" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+  <ellipse cx="32" cy="36" rx="8" ry="10" fill="#CD853F" opacity="0.6"/>
+  <circle cx="32" cy="38" r="4" fill="#4B3621"/>
+</svg>`;
+
+// Tomato
+const tomatoSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="36" r="14" fill="#FF6347" stroke="#DC143C" stroke-width="2"/>
+  <path d="M 26 22 L 28 20 L 30 22 L 32 20 L 34 22 L 36 20 L 38 22" stroke="#228B22" stroke-width="2" fill="none"/>
+  <circle cx="26" cy="22" r="2.5" fill="#7CB342" stroke="#558B2F" stroke-width="1"/>
+  <circle cx="30" cy="22" r="2.5" fill="#7CB342" stroke="#558B2F" stroke-width="1"/>
+  <circle cx="34" cy="22" r="2.5" fill="#7CB342" stroke="#558B2F" stroke-width="1"/>
+  <circle cx="38" cy="22" r="2.5" fill="#7CB342" stroke="#558B2F" stroke-width="1"/>
+  <ellipse cx="26" cy="32" rx="3" ry="5" fill="#FF7F7F" opacity="0.4"/>
+</svg>`;
+
+// Yellow Passionfruit
+const yellowPassionfruitSvg = `<svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="34" r="14" fill="#FFD700" stroke="#FFA500" stroke-width="2"/>
+  <path d="M 32 20 Q 34 16 38 16" stroke="#228B22" stroke-width="2" fill="none"/>
+  <ellipse cx="38" cy="16" rx="5" ry="2.5" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+  <circle cx="28" cy="30" r="1.5" fill="#8B4513"/>
+  <circle cx="36" cy="30" r="1.5" fill="#8B4513"/>
+  <circle cx="32" cy="34" r="1.5" fill="#8B4513"/>
+  <circle cx="28" cy="38" r="1.5" fill="#8B4513"/>
+  <circle cx="36" cy="38" r="1.5" fill="#8B4513"/>
+  <circle cx="32" cy="42" r="1.5" fill="#8B4513"/>
+</svg>`;
+
 // Raw SVGs mapped by name for wrapping
 const rawSvgs: Record<string, string> = {
+  aloeVera: aloeVeraSvg,
+  apple: appleSvg,
   avocado: avocadoSvg,
   bamboo: bambooSvg,
   banana: bananaSvg,
   bitterOrange: bitterOrangeSvg,
+  blackberry: blackberrySvg,
   blackWalnut: blackWalnutSvg,
   bluePassionflower: bluePassionflowerSvg,
+  chayote: chayoteSvg,
   clementine: clementineSvg,
   collardGreens: collardGreensSvg,
   commonFig: commonFigSvg,
   commonGuava: commonGuavaSvg,
+  dragonfruit: dragonfruitSvg,
   fig: figSvg,
   grape: grapeSvg,
   grapefruit: grapefruitSvg,
   guava: guavaSvg,
+  japanesePersimmon: japanesePersimmonSvg,
   kale: kaleSvg,
+  lavender: lavenderSvg,
   lemon: lemonSvg,
   lime: limeSvg,
   loquat: loquatSvg,
   olive: oliveSvg,
   orange: orangeSvg,
+  papaya: papayaSvg,
+  passionfruit: passionfruitSvg,
   peach: peachSvg,
   pineappleSage: pineappleSageSvg,
   pomegranate: pomegranateSvg,
+  pricklyPear: pricklyPearSvg,
   rose: roseSvg,
   rosemary: rosemarySvg,
   sage: sageSvg,
+  sapote: sapoteSvg,
   shiso: shisoSvg,
   squash: squashSvg,
   strawberryHedgehog: strawberryHedgehogSvg,
   sweetLime: sweetLimeSvg,
   thyme: thymeSvg,
+  tomato: tomatoSvg,
+  yellowPassionfruit: yellowPassionfruitSvg,
 };
 
 // Generate wrapped icons (white circle background)
@@ -390,8 +562,27 @@ export type FruitIconName = keyof typeof rawSvgs;
 // Type ID to icon name mapping (primary type IDs for common fruits)
 // Multiple type IDs can map to the same icon
 export const typeIdToIcon: Record<number, FruitIconName> = {
-  // Avocado
-  7: 'avocado',
+  // Aloe Vera
+  709: 'aloeVera', // Aloe vera
+  772: 'aloeVera', // Aloe genus
+  // Apple (Malus)
+  14: 'apple', // Malus pumila (Apple)
+  114: 'apple', // Malus genus
+  270: 'apple', // Malus floribunda
+  331: 'apple', // Malus sylvestris (European crabapple)
+  351: 'apple', // Malus baccata (Siberian crabapple)
+  402: 'apple', // Malus coronaria (Sweet crabapple)
+  403: 'apple', // Malus fusca (Oregon crabapple)
+  416: 'apple', // Malus hupehensis (Chinese crabapple)
+  1566: 'apple', // Malus pumila 'McIntosh'
+  1874: 'apple', // Malus pumila 'Cox's Orange Pippin'
+  2006: 'apple', // Malus sieversii (Wild apple)
+  2156: 'apple', // Malus prunifolia (Chinese apple)
+  2194: 'apple', // Malus (Crabapple)
+  3177: 'apple', // Malus pumila 'Honeycrisp'
+  // Avocado (Persea americana)
+  7: 'avocado', // Persea americana
+  3363: 'avocado', // Persea americana 'Ettinger'
   4631: 'avocado',
   4632: 'avocado',
   4641: 'avocado',
@@ -401,17 +592,30 @@ export const typeIdToIcon: Record<number, FruitIconName> = {
   // Bamboo
   161: 'bamboo',
   997: 'bamboo',
-  // Banana
-  75: 'banana',
-  1982: 'banana',
-  5719: 'banana',
+  // Banana (Musa)
+  75: 'banana', // Musa
+  160: 'banana', // Musa (Plantain)
+  1982: 'banana', // Musa acuminata
+  2985: 'banana', // Musa acuminata (Red banana)
+  5719: 'banana', // Musa acuminata x balbisiana 'Goldfinger'
+  7655: 'banana', // Musa hirta (Bornean hairy banana)
+  7871: 'banana', // Musa acuminata (Cavendish)
+  8361: 'banana', // Musa basjoo (hardy banana)
   // Bitter orange
   81: 'bitterOrange',
+  // Blackberry (Rubus)
+  48: 'blackberry', // Rubus (Blackberry)
+  1741: 'blackberry', // Rubus ursinus (California blackberry)
+  1886: 'blackberry', // Rubus laciniatus (Evergreen blackberry)
+  1986: 'blackberry', // Rubus ulmifolius (Thornless blackberry)
+  2711: 'blackberry', // Rubus armeniacus (Himalayan blackberry)
   // Black walnut
   111: 'blackWalnut',
   3724: 'blackWalnut',
   // Blue passionflower
   2785: 'bluePassionflower',
+  // Chayote
+  518: 'chayote', // Sechium edule
   // Clementine
   1584: 'clementine',
   // Collard greens
@@ -437,22 +641,43 @@ export const typeIdToIcon: Record<number, FruitIconName> = {
   // Common guava
   458: 'commonGuava',
   8682: 'commonGuava',
+  // Dragonfruit
+  1496: 'dragonfruit', // Hylocereus
   // Fig
   445: 'fig',
-  // Grape
+  // Grape (including Vitis vinifera and Vitis labrusca)
   16: 'grape',
+  629: 'grape', // Vitis vinifera (Common grape)
+  753: 'grape', // Vitis labrusca 'Concord' (Concord grape)
+  7515: 'grape', // Vitis vinifera 'Isabella'
+  7677: 'grape', // Vitis labrusca 'Niagara' (Niagara grape)
+  8548: 'grape', // Vitis vinifera 'Madeleine Angevine'
   8549: 'grape',
   8668: 'grape',
   8669: 'grape',
+  8934: 'grape', // Vitis vinifera 'Flame Seedless'
+  8935: 'grape', // Vitis vinifera 'Mars'
   // Grapefruit
   5: 'grapefruit',
   6176: 'grapefruit',
   // Guava
   76: 'guava',
+  // Japanese Persimmon (Diospyros)
+  12: 'japanesePersimmon', // Diospyros (Persimmon)
+  246: 'japanesePersimmon', // Diospyros virginiana (American persimmon)
+  280: 'japanesePersimmon', // Diospyros kaki (Japanese persimmon)
+  462: 'japanesePersimmon', // Diospyros digyna (Chocolate persimmon)
+  941: 'japanesePersimmon', // Diospyros texana (Texas persimmon)
+  2120: 'japanesePersimmon', // Diospyros blancoi (Mabolo)
   // Kale
   50: 'kale',
+  // Lavender
+  17: 'lavender', // Lavandula
+  918: 'lavender', // Lavandula angustifolia (English lavender)
+  1623: 'lavender', // Lavandula stoechas (French lavender)
   // Lemon
   4: 'lemon',
+  459: 'lemon', // Aloysia citrodora (Lemon verbena)
   5097: 'lemon',
   // Lime
   26: 'lime',
@@ -470,11 +695,19 @@ export const typeIdToIcon: Record<number, FruitIconName> = {
   7874: 'olive',
   7888: 'olive',
   10610: 'olive',
-  // Orange
-  3: 'orange',
+  // Orange (Citrus x sinensis)
+  3: 'orange', // Citrus x sinensis
   5071: 'orange',
-  5733: 'orange',
+  5725: 'orange', // Citrus x sinensis 'Cara Cara'
+  5733: 'orange', // Citrus x sinensis 'Washington Navel'
+  6177: 'orange', // Citrus x sinensis (Navel orange)
   7594: 'orange',
+  // Papaya
+  222: 'papaya', // Carica papaya
+  // Passionfruit
+  78: 'passionfruit', // Passiflora edulis
+  1553: 'passionfruit', // Passiflora (Banana passionfruit)
+  8877: 'passionfruit', // Passiflora genus
   // Peach
   52: 'peach',
   4519: 'peach',
@@ -489,25 +722,40 @@ export const typeIdToIcon: Record<number, FruitIconName> = {
   10015: 'peach',
   // Pineapple sage
   5570: 'pineappleSage',
-  // Pomegranate
+  // Pomegranate (Punica granatum)
   13: 'pomegranate',
+  4132: 'pomegranate', // Ornamental pomegranate
   4384: 'pomegranate',
   4629: 'pomegranate',
   4635: 'pomegranate',
+  7930: 'pomegranate', // Dwarf pomegranate
+  9952: 'pomegranate', // Flowering pomegranate
+  // Prickly Pear (Opuntia)
+  56: 'pricklyPear', // Opuntia (Prickly pear)
+  1956: 'pricklyPear', // Opuntia ficus-indica
   // Rose
   82: 'rose',
   // Rosemary
   10: 'rosemary',
   // Sage
   9: 'sage',
+  // Sapote
+  95: 'sapote', // Casimiroa edulis (White sapote)
+  708: 'sapote', // Manilkara zapota (Sapodilla)
+  775: 'sapote', // Sapote
+  2773: 'sapote', // Quararibea cordata (South American sapote)
   // Shiso
   5568: 'shiso',
   // Squash
   65: 'squash',
+  // Strawberry Hedgehog Cactus (Echinocereus engelmannii)
+  1333: 'strawberryHedgehog',
   // Sweet lime
   771: 'sweetLime',
   // Thyme
   192: 'thyme',
+  // Tomato
+  61: 'tomato', // Solanum lycopersicum
 };
 
 // Get icon name for a location based on its type IDs
