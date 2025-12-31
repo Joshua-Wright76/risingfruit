@@ -100,6 +100,7 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
       <div
         ref={sheetRef}
         data-testid="location-sheet"
+        data-open={isOpen}
         className="rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out"
         style={{ 
           position: 'fixed',

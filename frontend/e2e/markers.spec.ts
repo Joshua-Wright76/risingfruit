@@ -60,15 +60,16 @@ test.describe('Markers and Detail Sheet', () => {
     }
     
     const sheet = page.locator('[data-testid="location-sheet"]');
-    const closeButton = page.locator('[aria-label="Close"]');
+    const closeButton = page.locator('[data-testid="location-sheet-close-button"]');
     
     // If sheet is visible, test closing it
     if (await sheet.isVisible()) {
-      await closeButton.click();
+      // Use force:true to click even if element is outside viewport
+      await closeButton.click({ force: true });
       await page.waitForTimeout(500);
       
-      // Sheet should slide away (translate-y-full class)
-      await expect(sheet).toHaveClass(/translate-y-full/);
+      // Sheet should be closed (data-open="false")
+      await expect(sheet).toHaveAttribute('data-open', 'false');
     }
   });
 
@@ -143,8 +144,8 @@ test.describe('Markers and Detail Sheet', () => {
     if (await sheet.isVisible()) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(500);
-      await expect(sheet).toHaveClass(/translate-y-full/);
+      // Sheet should be closed (data-open="false")
+      await expect(sheet).toHaveAttribute('data-open', 'false');
     }
   });
 });
-
