@@ -131,7 +131,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontWeight: 500, color: '#e5e5e5' }}>Filters</span>
           {activeFilterCount > 0 && (
-            <span style={styles.badge}>{activeFilterCount}</span>
+            <span data-testid="filter-badge" style={styles.badge}>{activeFilterCount}</span>
           )}
         </div>
         {isExpanded ? (
@@ -143,15 +143,17 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
 
       {/* Expanded panel */}
       {isExpanded && (
-        <div style={styles.expandedContent}>
+        <div data-testid="filter-expanded-content" style={styles.expandedContent}>
           {/* Categories */}
-          <p style={styles.sectionTitle}>Categories</p>
+          <p data-testid="categories-label" style={styles.sectionTitle}>Categories</p>
           <div style={styles.categoryGrid}>
             {CATEGORIES.map(({ id, label, icon: Icon }) => {
               const isActive = filters.categories.includes(id);
               return (
                 <button
                   key={id}
+                  data-testid={`category-${id}`}
+                  data-active={isActive}
                   onClick={() => toggleCategory(id)}
                   style={styles.categoryButton(isActive)}
                 >
@@ -163,8 +165,8 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
           </div>
 
           {/* Season filter */}
-          <p style={styles.sectionTitle}>Season</p>
-          <button onClick={toggleSeasonFilter} style={styles.seasonButton(filters.inSeasonOnly)}>
+          <p data-testid="season-label" style={styles.sectionTitle}>Season</p>
+          <button data-testid="season-filter" data-active={filters.inSeasonOnly} onClick={toggleSeasonFilter} style={styles.seasonButton(filters.inSeasonOnly)}>
             <Calendar style={{ width: '20px', height: '20px', color: filters.inSeasonOnly ? 'white' : '#737373' }} />
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0 }}>In season now</p>
