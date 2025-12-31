@@ -328,6 +328,53 @@ export function ForagingMap() {
     }
   }, []);
 
+  // Retry location permission (triggers iOS permission dialog)
+  const retryLocationPermission = useCallback(() => {
+    setShowLocationPrompt(false);
+    // Small delay to let prompt close, then retry 3D mode
+    setTimeout(() => {
+      const map = mapRef.current?.getMap();
+      if (!map) return;
+      
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const userLat = pos.coords.latitude;
+          const userLng = pos.coords.longitude;
+          
+          // Save current view
+          const center = map.getCenter();
+          previousViewRef.current = {
+            center: [center.lng, center.lat],
+            zoom: map.getZoom(),
+          };
+          
+          setUserLocation({ lat: userLat, lng: userLng });
+          
+          map.flyTo({
+            center: [userLng, userLat],
+            zoom: 17,
+            pitch: 60,
+            duration: 1000,
+          });
+          
+          await startCompass();
+          startWatchingPosition();
+          
+          map.dragPan.disable();
+          map.dragRotate.disable();
+          map.touchZoomRotate.disableRotation();
+          
+          setIs3DMode(true);
+        },
+        () => {
+          // Still denied, show prompt again
+          setShowLocationPrompt(true);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }, 100);
+  }, [startCompass, startWatchingPosition]);
+
   // Toggle 3D mode
   const toggle3DMode = useCallback(async () => {
     const map = mapRef.current?.getMap();
@@ -951,16 +998,26 @@ export function ForagingMap() {
               3D navigation mode needs access to your location to center the map on you and track your movement.
             </Text>
             <Text size="xs" c="gray.5" ta="center">
-              Please enable location services in your browser or device settings.
+              Tap "Enable Location" to grant access, or check your device settings.
             </Text>
-            <Button
-              fullWidth
-              variant="filled"
-              color="primary"
-              onClick={() => setShowLocationPrompt(false)}
-            >
-              Got it
-            </Button>
+            <Group justify="center" gap={12} w="100%">
+              <Button
+                variant="subtle"
+                color="gray"
+                onClick={() => setShowLocationPrompt(false)}
+                style={{ flex: 1 }}
+              >
+                Not Now
+              </Button>
+              <Button
+                variant="filled"
+                color="primary"
+                onClick={retryLocationPermission}
+                style={{ flex: 1 }}
+              >
+                Enable Location
+              </Button>
+            </Group>
           </Stack>
         </Paper>
       )}
