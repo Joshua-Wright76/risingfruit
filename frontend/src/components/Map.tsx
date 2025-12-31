@@ -231,6 +231,7 @@ export function ForagingMap() {
   // 3D mode location tracking
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const previousViewRef = useRef<{ center: [number, number]; zoom: number } | null>(null);
 
@@ -328,52 +329,79 @@ export function ForagingMap() {
     }
   }, []);
 
+  // Check if location permission is denied (for showing appropriate UI)
+  const checkLocationPermission = useCallback(async (): Promise<'granted' | 'denied' | 'prompt' | 'unknown'> => {
+    if ('permissions' in navigator) {
+      try {
+        const status = await navigator.permissions.query({ name: 'geolocation' });
+        return status.state;
+      } catch {
+        return 'unknown';
+      }
+    }
+    return 'unknown';
+  }, []);
+
   // Retry location permission (triggers iOS permission dialog)
-  const retryLocationPermission = useCallback(() => {
+  // IMPORTANT: No setTimeout - iOS requires user gesture chain to be intact
+  const retryLocationPermission = useCallback(async () => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    // Check permission state first
+    const permissionState = await checkLocationPermission();
+    
+    if (permissionState === 'denied') {
+      // Permission was denied - can't trigger dialog, show settings guidance
+      setLocationPermissionDenied(true);
+      return;
+    }
+
+    // Close prompt and immediately request location (preserves user gesture)
     setShowLocationPrompt(false);
-    // Small delay to let prompt close, then retry 3D mode
-    setTimeout(() => {
-      const map = mapRef.current?.getMap();
-      if (!map) return;
-      
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const userLat = pos.coords.latitude;
-          const userLng = pos.coords.longitude;
-          
-          // Save current view
-          const center = map.getCenter();
-          previousViewRef.current = {
-            center: [center.lng, center.lat],
-            zoom: map.getZoom(),
-          };
-          
-          setUserLocation({ lat: userLat, lng: userLng });
-          
-          map.flyTo({
-            center: [userLng, userLat],
-            zoom: 17,
-            pitch: 60,
-            duration: 1000,
-          });
-          
-          await startCompass();
-          startWatchingPosition();
-          
-          map.dragPan.disable();
-          map.dragRotate.disable();
-          map.touchZoomRotate.disableRotation();
-          
-          setIs3DMode(true);
-        },
-        () => {
-          // Still denied, show prompt again
-          setShowLocationPrompt(true);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    }, 100);
-  }, [startCompass, startWatchingPosition]);
+    setLocationPermissionDenied(false);
+    
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const userLat = pos.coords.latitude;
+        const userLng = pos.coords.longitude;
+        
+        // Save current view
+        const center = map.getCenter();
+        previousViewRef.current = {
+          center: [center.lng, center.lat],
+          zoom: map.getZoom(),
+        };
+        
+        setUserLocation({ lat: userLat, lng: userLng });
+        
+        map.flyTo({
+          center: [userLng, userLat],
+          zoom: 17,
+          pitch: 60,
+          duration: 1000,
+        });
+        
+        await startCompass();
+        startWatchingPosition();
+        
+        map.dragPan.disable();
+        map.dragRotate.disable();
+        map.touchZoomRotate.disableRotation();
+        
+        setIs3DMode(true);
+      },
+      async () => {
+        // Check why it failed
+        const state = await checkLocationPermission();
+        if (state === 'denied') {
+          setLocationPermissionDenied(true);
+        }
+        setShowLocationPrompt(true);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, [startCompass, startWatchingPosition, checkLocationPermission]);
 
   // Toggle 3D mode
   const toggle3DMode = useCallback(async () => {
@@ -985,39 +1013,88 @@ export function ForagingMap() {
             <Box
               p={12}
               style={{
-                backgroundColor: 'var(--mantine-color-primary-9)',
+                backgroundColor: locationPermissionDenied 
+                  ? 'var(--mantine-color-red-9)' 
+                  : 'var(--mantine-color-primary-9)',
                 borderRadius: '50%',
               }}
             >
-              <MapPin size={32} style={{ color: 'var(--mantine-color-primary-4)' }} />
+              <MapPin 
+                size={32} 
+                style={{ 
+                  color: locationPermissionDenied 
+                    ? 'var(--mantine-color-red-4)' 
+                    : 'var(--mantine-color-primary-4)' 
+                }} 
+              />
             </Box>
             <Text size="lg" fw={600} c="gray.0" ta="center">
-              Location Required
+              {locationPermissionDenied ? 'Location Blocked' : 'Location Required'}
             </Text>
             <Text size="sm" c="gray.4" ta="center">
-              3D navigation mode needs access to your location to center the map on you and track your movement.
+              {locationPermissionDenied 
+                ? 'Location access was denied. You need to enable it in your device settings.'
+                : '3D navigation mode needs access to your location to center the map on you and track your movement.'
+              }
             </Text>
-            <Text size="xs" c="gray.5" ta="center">
-              Tap "Enable Location" to grant access, or check your device settings.
-            </Text>
-            <Group justify="center" gap={12} w="100%">
-              <Button
-                variant="subtle"
-                color="gray"
-                onClick={() => setShowLocationPrompt(false)}
-                style={{ flex: 1 }}
-              >
-                Not Now
-              </Button>
-              <Button
-                variant="filled"
-                color="primary"
-                onClick={retryLocationPermission}
-                style={{ flex: 1 }}
-              >
-                Enable Location
-              </Button>
-            </Group>
+            {locationPermissionDenied ? (
+              <>
+                <Box
+                  p={12}
+                  style={{
+                    backgroundColor: 'var(--mantine-color-surface-8)',
+                    borderRadius: 8,
+                    width: '100%',
+                  }}
+                >
+                  <Text size="xs" c="gray.3" ta="left" fw={500} mb={8}>
+                    To enable location:
+                  </Text>
+                  <Text size="xs" c="gray.4" ta="left" component="div">
+                    <div style={{ marginBottom: 4 }}>1. Open <strong>Settings</strong> on your device</div>
+                    <div style={{ marginBottom: 4 }}>2. Go to <strong>Safari → Location</strong></div>
+                    <div>3. Select <strong>"Ask"</strong> or <strong>"Allow"</strong></div>
+                  </Text>
+                </Box>
+                <Group justify="center" gap={12} w="100%">
+                  <Button
+                    fullWidth
+                    variant="subtle"
+                    color="gray"
+                    onClick={() => {
+                      setShowLocationPrompt(false);
+                      setLocationPermissionDenied(false);
+                    }}
+                  >
+                    Got It
+                  </Button>
+                </Group>
+              </>
+            ) : (
+              <>
+                <Text size="xs" c="gray.5" ta="center">
+                  Tap "Enable Location" to grant access.
+                </Text>
+                <Group justify="center" gap={12} w="100%">
+                  <Button
+                    variant="subtle"
+                    color="gray"
+                    onClick={() => setShowLocationPrompt(false)}
+                    style={{ flex: 1 }}
+                  >
+                    Not Now
+                  </Button>
+                  <Button
+                    variant="filled"
+                    color="primary"
+                    onClick={retryLocationPermission}
+                    style={{ flex: 1 }}
+                  >
+                    Enable Location
+                  </Button>
+                </Group>
+              </>
+            )}
           </Stack>
         </Paper>
       )}
