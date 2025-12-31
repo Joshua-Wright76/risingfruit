@@ -1,0 +1,8 @@
+we need to have a more robust season-checking system, seasons can be complex
+
+I want to add more of the fruits in SF
+`
+
+the location bug: 
+it might be because the app is served over http instead of https
+

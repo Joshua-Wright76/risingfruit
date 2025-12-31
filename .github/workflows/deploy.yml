@@ -43,7 +43,7 @@ jobs:
       - name: Create env file for tests
         run: |
           cd frontend
-          echo "VITE_API_BASE_URL=http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000" > .env.local
+          echo "VITE_API_BASE_URL=https://16.144.65.155.sslip.io" > .env.local
           echo "VITE_MAPBOX_TOKEN=${{ secrets.MAPBOX_TOKEN }}" >> .env.local
 
       - name: Run Playwright tests
@@ -176,8 +176,28 @@ jobs:
             # Stop and remove existing containers
             sudo docker compose down --remove-orphans || true
             
-            # Remove old images to force fresh build
-            sudo docker image prune -af || true
+            # Check if SSL certificates exist
+            if [ ! -f ~/risingfruit/backend/certbot/conf/live/16.144.65.155.sslip.io/fullchain.pem ]; then
+              echo "SSL certificates not found, obtaining initial certificates..."
+              mkdir -p ~/risingfruit/backend/certbot/conf ~/risingfruit/backend/certbot/www
+              
+              # Run temporary nginx to handle acme challenge
+              sudo docker run -d --name temp-nginx -p 80:80 \
+                -v ~/risingfruit/backend/certbot/www:/usr/share/nginx/html:ro nginx:alpine
+              
+              sleep 5
+              
+              # Request certificate
+              sudo docker run --rm --name certbot \
+                -v ~/risingfruit/backend/certbot/conf:/etc/letsencrypt \
+                -v ~/risingfruit/backend/certbot/www:/var/www/certbot \
+                certbot/certbot certonly --webroot -w /var/www/certbot \
+                -d 16.144.65.155.sslip.io --email joshua@risingfruit.app --agree-tos --no-eff-email \
+                --non-interactive
+              
+              sudo docker stop temp-nginx || true
+              sudo docker rm temp-nginx || true
+            fi
             
             # Build new image (no cache)
             sudo docker compose build --no-cache
@@ -216,9 +236,13 @@ jobs:
               # Don't fail - import may still be in progress
             fi
             
-            # Test frontend is being served
-            echo "=== Testing Frontend ==="
-            curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/ || echo "Frontend test failed"
+            # Test frontend is being served over HTTPS
+            echo "=== Testing Frontend (HTTPS) ==="
+            curl -s -k -o /dev/null -w "%{http_code}" https://localhost/ || echo "Frontend HTTPS test failed"
+            
+            # Test API is reachable
+            echo "=== Testing API (HTTPS) ==="
+            curl -s -k -o /dev/null -w "%{http_code}" https://localhost/api/health || echo "API HTTPS test failed"
           EOF
 
       - name: Cleanup SSH key
