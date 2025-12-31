@@ -19,7 +19,7 @@ A Progressive Web App providing a mobile-first interface for the Falling Fruit u
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Rising Fruit PWA                          │
-│  (React + Vite + Tailwind + Mapbox GL)                          │
+│  (React + Vite + Mantine + Mapbox GL)                           │
 └─────────────────────────────┬────────────────────────────────────┘
                               │
                               ▼
@@ -49,11 +49,11 @@ A Progressive Web App providing a mobile-first interface for the Falling Fruit u
 | Framework | React | 18+ |
 | Build Tool | Vite | 5+ |
 | Language | TypeScript | 5+ (strict mode) |
-| Styling | Tailwind CSS | 3+ |
+| UI Library | Mantine | 7+ |
 | Maps | Mapbox GL JS | 3+ |
 | PWA | vite-plugin-pwa | latest |
 | State/Cache | TanStack Query | 5+ |
-| Routing | React Router | 6+ |
+| Icons | Lucide React | latest |
 
 ### Backend
 
@@ -92,13 +92,27 @@ risingfruit/
 ├── docs/
 │   ├── api-reference.md        # Falling Fruit API Blueprint
 │   └── architecture.md         # System architecture
-├── src/                        # Frontend source (future)
-│   ├── components/
-│   ├── features/
-│   ├── hooks/
-│   ├── lib/
-│   ├── types/
-│   └── styles/
+├── frontend/                   # Frontend source
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Map.tsx         # Main map component with Mapbox GL
+│   │   │   ├── LocationSheet.tsx # Bottom sheet for location details
+│   │   │   ├── SearchBar.tsx   # Plant type search
+│   │   │   ├── FilterPanel.tsx # Season filter UI
+│   │   │   ├── FruitIcons.ts   # Emoji/SVG marker icons
+│   │   │   └── MarkerIcons.ts  # Base marker SVGs
+│   │   ├── lib/
+│   │   │   ├── api.ts          # Backend API client
+│   │   │   ├── colors.ts       # Color constants
+│   │   │   ├── typeIdMappings.ts # Type ID to icon mapping
+│   │   │   └── fruitSeasons.ts # Season logic
+│   │   ├── types/
+│   │   │   └── location.ts     # TypeScript interfaces
+│   │   ├── theme.ts            # Mantine theme configuration
+│   │   ├── App.tsx             # Root component with providers
+│   │   └── main.tsx            # Entry point
+│   ├── e2e/                    # Playwright E2E tests
+│   └── package.json
 ├── .env.local                  # Local secrets (gitignored)
 └── .gitignore
 ```
@@ -199,7 +213,7 @@ docker-compose pull
 docker-compose up -d --build
 ```
 
-## Frontend (Future)
+## Frontend
 
 ### Coding Conventions
 
@@ -254,8 +268,9 @@ export function LocationCard({ location, onSelect }: LocationCardProps) {
 
 - Minimum touch target: 44x44px (Apple HIG)
 - Adequate spacing between interactive elements
-- Thumb-friendly bottom navigation
-- Responsive breakpoints (Tailwind defaults)
+- Thumb-friendly bottom sheet for location details
+- Glass-morphism UI (semi-transparent backgrounds with blur)
+- Responsive breakpoints using Mantine's responsive props
 
 ### Performance Budget
 
@@ -263,6 +278,29 @@ export function LocationCard({ location, onSelect }: LocationCardProps) {
 - Time to Interactive: < 3s
 - Largest Contentful Paint: < 2.5s
 - Bundle size (gzipped): < 200KB initial
+
+### Testing
+
+E2E tests use Playwright with custom fixtures:
+
+```bash
+cd frontend
+
+# Run all tests
+npx playwright test
+
+# Run specific test file
+npx playwright test markers.spec.ts
+
+# Run with UI mode
+npx playwright test --ui
+```
+
+Key test selectors:
+- `data-testid="filter-panel"` - Filter panel container
+- `data-testid="location-sheet"` - Location detail sheet
+- `data-testid="season-filter"` - Season toggle button
+- `placeholder="Search plants..."` - Search input
 
 ## Environment Variables
 
@@ -280,31 +318,34 @@ VITE_MAPBOX_TOKEN=pk.your_mapbox_token_here
 
 ## Design System
 
-### Colors (Tailwind)
+### Colors (Mantine Theme)
 
-```javascript
-// tailwind.config.js
-module.exports = {
-  theme: {
-    extend: {
-      colors: {
-        // Primary - nature green
-        primary: {
-          50: '#f0fdf4',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-        },
-        // Accent - fruit orange
-        accent: {
-          50: '#fff7ed',
-          500: '#f97316',
-          600: '#ea580c',
-        },
-      },
-    },
-  },
+The app uses a custom Mantine theme defined in `frontend/src/theme.ts`:
+
+```typescript
+// Theme colors - 10 shades each (0-9)
+const colors = {
+  // Surface - Dark theme backgrounds (0 = lightest, 9 = darkest)
+  surface: ['#fafafa', ..., '#171717'],
+  
+  // Primary - Nature green (brand color, in-season indicators)
+  primary: ['#f0fdf4', ..., '#22c55e', ..., '#14532d'],
+  
+  // Accent - Fruit orange (highlights, unverified markers)
+  accent: ['#fff7ed', ..., '#f97316', ..., '#7c2d12'],
 };
+```
+
+### Component Usage
+
+Use Mantine components with theme-aware styling:
+
+```typescript
+import { Box, Paper, Text, Button, Group, Stack } from '@mantine/core';
+
+<Paper bg="surface.9" p="md" radius="lg">
+  <Text c="primary.4" fw={600}>In Season</Text>
+</Paper>
 ```
 
 ### Icons
@@ -312,8 +353,16 @@ module.exports = {
 Use Lucide React for consistent iconography:
 
 ```typescript
-import { MapPin, Leaf, Search, Plus } from 'lucide-react';
+import { MapPin, Leaf, Search, Calendar, X } from 'lucide-react';
 ```
+
+### Fruit/Emoji Icons
+
+Custom marker icons are defined in `frontend/src/components/FruitIcons.ts`:
+- Emoji-based icons for common fruits (apple 🍎, lemon 🍋, grape 🍇, etc.)
+- Custom SVG icons for exotic fruits without emoji equivalents
+- Season-aware borders (green = in season, gray = out of season)
+- Type ID mappings in `frontend/src/lib/typeIdMappings.ts`
 
 ## Git Conventions
 

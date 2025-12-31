@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, {
   GeolocateControl,
   Layer,
@@ -10,8 +10,8 @@ import Map, {
   type MapMouseEvent,
 } from 'react-map-gl/mapbox';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { Box, Paper, Text, Group, Loader, Button, Stack } from '@mantine/core';
-import { Leaf } from 'lucide-react';
+import { Box, Paper, Text, Group, Loader, Button, Stack, ActionIcon, Tooltip } from '@mantine/core';
+import { Leaf, Navigation2, MapPin } from 'lucide-react';
 import { getLocations } from '../lib/api';
 import { marker, primary, surface } from '../lib/colors';
 import type { BoundingBox, Location, PlantType } from '../types/location';
@@ -222,6 +222,242 @@ export function ForagingMap() {
   const [filters, setFilters] = useState<FilterState>({
     inSeasonOnly: false,
   });
+  
+  // 3D compass mode state
+  const [is3DMode, setIs3DMode] = useState(false);
+  const [compassHeading, setCompassHeading] = useState<number | null>(null);
+  const compassListenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+  
+  // 3D mode location tracking
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
+  const previousViewRef = useRef<{ center: [number, number]; zoom: number } | null>(null);
+
+  // Handle compass orientation events
+  const handleDeviceOrientation = useCallback((e: DeviceOrientationEvent) => {
+    // iOS provides webkitCompassHeading directly
+    // Android requires calculation from alpha (with beta/gamma for tilt compensation)
+    let heading: number | null = null;
+    
+    // Type assertion for iOS-specific property
+    const event = e as DeviceOrientationEvent & { webkitCompassHeading?: number };
+    
+    if (event.webkitCompassHeading !== undefined) {
+      // iOS: webkitCompassHeading is degrees from north (0-360)
+      heading = event.webkitCompassHeading;
+    } else if (e.alpha !== null) {
+      // Android: alpha is rotation around z-axis
+      // Convert to compass heading (0 = north, 90 = east, etc.)
+      heading = (360 - e.alpha) % 360;
+    }
+    
+    if (heading !== null) {
+      setCompassHeading(heading);
+    }
+  }, []);
+
+  // Start listening to compass
+  const startCompass = useCallback(async () => {
+    // Check if DeviceOrientationEvent is available
+    if (!('DeviceOrientationEvent' in window)) {
+      console.warn('Device orientation not supported');
+      return false;
+    }
+
+    // iOS 13+ requires permission request
+    const DOE = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    };
+    
+    if (typeof DOE.requestPermission === 'function') {
+      try {
+        const permission = await DOE.requestPermission();
+        if (permission !== 'granted') {
+          console.warn('Device orientation permission denied');
+          return false;
+        }
+      } catch (err) {
+        console.warn('Error requesting device orientation permission:', err);
+        return false;
+      }
+    }
+
+    // Store the listener reference for cleanup
+    compassListenerRef.current = handleDeviceOrientation;
+    window.addEventListener('deviceorientation', handleDeviceOrientation);
+    return true;
+  }, [handleDeviceOrientation]);
+
+  // Stop listening to compass
+  const stopCompass = useCallback(() => {
+    if (compassListenerRef.current) {
+      window.removeEventListener('deviceorientation', compassListenerRef.current);
+      compassListenerRef.current = null;
+    }
+    setCompassHeading(null);
+  }, []);
+
+  // Start watching user position
+  const startWatchingPosition = useCallback(() => {
+    if (!navigator.geolocation) return;
+    
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        setUserLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+      },
+      (err) => {
+        console.warn('Position watch error:', err);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+        timeout: 10000,
+      }
+    );
+  }, []);
+
+  // Stop watching user position
+  const stopWatchingPosition = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  }, []);
+
+  // Toggle 3D mode
+  const toggle3DMode = useCallback(async () => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    if (!is3DMode) {
+      // Check if geolocation is available
+      if (!navigator.geolocation) {
+        setShowLocationPrompt(true);
+        return;
+      }
+
+      // Save current view to restore later
+      const center = map.getCenter();
+      previousViewRef.current = {
+        center: [center.lng, center.lat],
+        zoom: map.getZoom(),
+      };
+
+      // Get current position first
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const userLat = pos.coords.latitude;
+          const userLng = pos.coords.longitude;
+          
+          setUserLocation({ lat: userLat, lng: userLng });
+          
+          // Fly to user location with 3D view
+          map.flyTo({
+            center: [userLng, userLat],
+            zoom: 17,
+            pitch: 60,
+            duration: 1000,
+          });
+          
+          // Start compass
+          await startCompass();
+          
+          // Start watching position for continuous updates
+          startWatchingPosition();
+          
+          // Disable panning/dragging
+          map.dragPan.disable();
+          map.dragRotate.disable();
+          map.touchZoomRotate.disableRotation();
+          
+          setIs3DMode(true);
+        },
+        (err) => {
+          console.warn('Geolocation error:', err);
+          setShowLocationPrompt(true);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    } else {
+      // Disable 3D mode
+      stopCompass();
+      stopWatchingPosition();
+      setUserLocation(null);
+      
+      // Re-enable panning
+      map.dragPan.enable();
+      map.dragRotate.enable();
+      map.touchZoomRotate.enableRotation();
+      
+      // Reset to flat view, restore previous position if available
+      if (previousViewRef.current) {
+        map.flyTo({
+          center: previousViewRef.current.center,
+          zoom: previousViewRef.current.zoom,
+          pitch: 0,
+          bearing: 0,
+          duration: 500,
+        });
+        previousViewRef.current = null;
+      } else {
+        map.easeTo({
+          pitch: 0,
+          bearing: 0,
+          duration: 500,
+        });
+      }
+      
+      setIs3DMode(false);
+    }
+  }, [is3DMode, startCompass, stopCompass, startWatchingPosition, stopWatchingPosition]);
+
+  // Update map bearing when compass heading changes
+  useEffect(() => {
+    if (!is3DMode || compassHeading === null) return;
+    
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    // Smoothly update bearing to match compass heading
+    // Note: Mapbox bearing is degrees clockwise from north
+    map.setBearing(compassHeading);
+  }, [is3DMode, compassHeading]);
+
+  // Keep map centered on user location in 3D mode
+  useEffect(() => {
+    if (!is3DMode || !userLocation) return;
+    
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    // Smoothly center on user position
+    map.easeTo({
+      center: [userLocation.lng, userLocation.lat],
+      duration: 300,
+    });
+  }, [is3DMode, userLocation]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up compass listener
+      if (compassListenerRef.current) {
+        window.removeEventListener('deviceorientation', compassListenerRef.current);
+      }
+      // Clean up position watch
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
 
   // Query locations when bounds or filters change
   const { data, isLoading, error, refetch } = useQuery({
@@ -520,6 +756,41 @@ export function ForagingMap() {
         )}
       </Map>
 
+      {/* 3D Compass Mode Toggle Button */}
+      <Tooltip 
+        label={is3DMode ? 'Exit 3D mode' : '3D compass mode'} 
+        position="left"
+        withArrow
+      >
+        <ActionIcon
+          pos="absolute"
+          bottom={180}
+          right={10}
+          size={29}
+          variant="filled"
+          onClick={toggle3DMode}
+          aria-label={is3DMode ? 'Exit 3D mode' : 'Enter 3D compass mode'}
+          style={{
+            zIndex: 1,
+            backgroundColor: is3DMode ? 'var(--mantine-color-primary-6)' : '#fff',
+            color: is3DMode ? '#fff' : '#333',
+            borderRadius: 4,
+            boxShadow: '0 0 0 2px rgba(0,0,0,0.1)',
+            transition: 'background-color 0.2s, color 0.2s',
+          }}
+        >
+          <Navigation2 
+            size={18} 
+            style={{ 
+              transform: is3DMode && compassHeading !== null 
+                ? `rotate(${compassHeading}deg)` 
+                : 'rotate(0deg)',
+              transition: 'transform 0.1s ease-out',
+            }} 
+          />
+        </ActionIcon>
+      </Tooltip>
+
       {/* Search and filters */}
       <Box
         pos="absolute"
@@ -641,6 +912,56 @@ export function ForagingMap() {
               Retry
             </Button>
           </Group>
+        </Paper>
+      )}
+
+      {/* Location permission prompt */}
+      {showLocationPrompt && (
+        <Paper
+          pos="absolute"
+          top="50%"
+          left="50%"
+          p={24}
+          radius="lg"
+          shadow="xl"
+          style={{
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1001,
+            backgroundColor: 'rgba(23, 23, 23, 0.98)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid var(--mantine-color-surface-6)',
+            maxWidth: 320,
+          }}
+        >
+          <Stack align="center" gap={16}>
+            <Box
+              p={12}
+              style={{
+                backgroundColor: 'var(--mantine-color-primary-9)',
+                borderRadius: '50%',
+              }}
+            >
+              <MapPin size={32} style={{ color: 'var(--mantine-color-primary-4)' }} />
+            </Box>
+            <Text size="lg" fw={600} c="gray.0" ta="center">
+              Location Required
+            </Text>
+            <Text size="sm" c="gray.4" ta="center">
+              3D navigation mode needs access to your location to center the map on you and track your movement.
+            </Text>
+            <Text size="xs" c="gray.5" ta="center">
+              Please enable location services in your browser or device settings.
+            </Text>
+            <Button
+              fullWidth
+              variant="filled"
+              color="primary"
+              onClick={() => setShowLocationPrompt(false)}
+            >
+              Got it
+            </Button>
+          </Stack>
         </Paper>
       )}
 
