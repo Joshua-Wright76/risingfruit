@@ -168,6 +168,21 @@ jobs:
             ./frontend/dist/ \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/risingfruit/backend/frontend/dist/
 
+      - name: Clean up Docker resources on EC2
+        run: |
+          ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            echo "=== Disk space before cleanup ==="
+            df -h /
+            
+            # Clean up unused Docker resources to free disk space
+            echo "Cleaning up Docker resources..."
+            sudo docker system prune -af --volumes 2>/dev/null || true
+            sudo docker builder prune -af 2>/dev/null || true
+            
+            echo "=== Disk space after cleanup ==="
+            df -h /
+          EOF
+
       - name: Build and deploy Docker container
         run: |
           ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
