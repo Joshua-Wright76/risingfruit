@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import Map, {
   GeolocateControl,
   Layer,
@@ -9,9 +9,10 @@ import Map, {
   type LayerProps,
   type MapMouseEvent,
 } from 'react-map-gl/mapbox';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Leaf } from 'lucide-react';
 import { getLocations } from '../lib/api';
+import { marker } from '../lib/colors';
 import type { BoundingBox, Location, PlantType } from '../types/location';
 import type { FeatureCollection, Point } from 'geojson';
 import { LocationSheet } from './LocationSheet';
@@ -20,7 +21,7 @@ import { FilterPanel, type FilterState } from './FilterPanel';
 import { EmptyState } from './EmptyState';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { markerIcons } from './MarkerIcons';
-import { fruitIcons, fruitIconsInSeason, getIconForTypes } from './FruitIcons';
+import { fruitIcons, fruitIconsInSeason, getIconForTypes, defaultIcon, defaultIconInSeason } from './FruitIcons';
 import { isIconInSeason } from '../lib/fruitSeasons';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -33,6 +34,29 @@ const INITIAL_VIEW = {
   zoom: 12,
 };
 
+// Check if a location is in season based on its season data
+function isLocationInSeason(loc: Location): boolean {
+  // If no season info, assume always in season
+  if (!loc.season_start && !loc.season_stop) return true;
+  
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+  const currentMonthIndex = months.indexOf(currentMonth);
+  
+  const startIndex = loc.season_start ? months.indexOf(loc.season_start) : 0;
+  const stopIndex = loc.season_stop ? months.indexOf(loc.season_stop) : 11;
+  
+  // Handle wrap-around seasons (e.g., Nov-Feb)
+  if (startIndex <= stopIndex) {
+    return currentMonthIndex >= startIndex && currentMonthIndex <= stopIndex;
+  } else {
+    return currentMonthIndex >= startIndex || currentMonthIndex <= stopIndex;
+  }
+}
+
 // Convert locations to GeoJSON for clustering
 function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
   return {
@@ -41,7 +65,10 @@ function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
       // Determine which icon to use based on type IDs
       const fruitIcon = getIconForTypes(loc.type_ids);
       // Check if the fruit is currently in season (for green border)
-      const fruitInSeason = fruitIcon ? isIconInSeason(fruitIcon) : false;
+      // For fruit icons, use the icon's season; for default, use location's season data
+      const fruitInSeason = fruitIcon 
+        ? isIconInSeason(fruitIcon) 
+        : isLocationInSeason(loc);
       return {
         type: 'Feature' as const,
         id: loc.id,
@@ -55,15 +82,18 @@ function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
           access: loc.access,
           type_ids: loc.type_ids,
           unverified: loc.unverified,
-          // Only include fruitIcon if it exists
-          ...(fruitIcon ? { fruitIcon, fruitInSeason } : {}),
+          // Include fruitIcon if exists, always include inSeason status
+          ...(fruitIcon ? { fruitIcon } : {}),
+          fruitInSeason,
+          inSeason: fruitInSeason ? 1 : 0, // Numeric for cluster aggregation
         },
       };
     }),
   };
 }
 
-// Cluster layer style
+// Cluster layer style - colors from src/lib/colors.ts
+// Uses grey colors for dark mode - edit marker.cluster in colors.ts to customize
 const clusterLayer: LayerProps = {
   id: 'clusters',
   type: 'circle',
@@ -73,36 +103,41 @@ const clusterLayer: LayerProps = {
     'circle-color': [
       'step',
       ['get', 'point_count'],
-      '#22c55e', // primary-500
+      marker.cluster.low,     // Low density
       50,
-      '#16a34a', // primary-600
+      marker.cluster.medium,  // Medium density
       200,
-      '#15803d', // primary-700
+      marker.cluster.high,    // High density
     ],
     'circle-radius': ['step', ['get', 'point_count'], 20, 50, 30, 200, 40],
     'circle-stroke-width': 2,
-    'circle-stroke-color': '#171717',
+    'circle-stroke-color': marker.cluster.stroke,
   },
 };
 
-// Cluster count label
+// Cluster count label - shows "inSeason/total" (e.g., "12/77")
 const clusterCountLayer: LayerProps = {
   id: 'cluster-count',
   type: 'symbol',
   source: 'locations',
   filter: ['has', 'point_count'],
   layout: {
-    'text-field': ['get', 'point_count_abbreviated'],
+    'text-field': [
+      'concat',
+      ['get', 'inSeasonSum'],
+      '/',
+      ['get', 'point_count_abbreviated']
+    ],
     'text-font': ['DIN Pro Medium', 'Arial Unicode MS Bold'],
     'text-size': 12,
   },
   paint: {
-    'text-color': '#ffffff',
+    'text-color': marker.cluster.text,
   },
 };
 
 // Individual point style with custom icons
-// Uses fruit-specific icons when available, falls back to generic leaf
+// Uses fruit-specific icons when available, falls back to green heart emoji
 // Icons in season get green border variant
 const unclusteredPointLayer: LayerProps = {
   id: 'unclustered-point',
@@ -121,8 +156,10 @@ const unclusteredPointLayer: LayerProps = {
       // If has fruit icon but not in season, use regular variant
       ['has', 'fruitIcon'],
       ['concat', 'fruit-', ['get', 'fruitIcon']],
-      // Default to leaf
-      'marker-leaf',
+      // Default: green heart emoji (with season-aware border)
+      ['==', ['get', 'fruitInSeason'], true],
+      'marker-default-inseason',
+      'marker-default',
     ],
     'icon-size': 1.25,
     'icon-allow-overlap': true,
@@ -140,12 +177,12 @@ const unclusteredPointFallbackLayer: LayerProps = {
     'circle-color': [
       'case',
       ['get', 'unverified'],
-      '#f97316', // accent-500 for unverified
-      '#22c55e', // primary-500 for verified
+      marker.unverified,
+      marker.verified,
     ],
     'circle-radius': 8,
     'circle-stroke-width': 2,
-    'circle-stroke-color': '#171717',
+    'circle-stroke-color': marker.stroke,
   },
 };
 
@@ -173,6 +210,7 @@ export function ForagingMap() {
     },
     enabled: !!bounds,
     staleTime: 30000, // Cache for 30s
+    placeholderData: keepPreviousData, // Keep showing previous data while loading to prevent flickering
     retry: 2,
     select: (data) => {
       if (!data || !filters.inSeasonOnly) return data;
@@ -231,6 +269,9 @@ export function ForagingMap() {
       ['marker-bag', markerIcons.bag],
       ['marker-unverified', markerIcons.unverified],
       ['marker-generic', markerIcons.generic],
+      // Default icons (green heart emoji) for fruits without specific icons
+      ['marker-default', defaultIcon],
+      ['marker-default-inseason', defaultIconInSeason],
     ];
 
     // Fruit-specific icons (regular - gray border)
@@ -356,12 +397,15 @@ export function ForagingMap() {
     setFilters({ categories: [], inSeasonOnly: false });
   }, []);
 
-  const geojson = data?.locations ? locationsToGeoJSON(data.locations) : null;
+  // Memoize GeoJSON to prevent unnecessary re-renders during pan/zoom
+  const geojson = useMemo(
+    () => data?.locations ? locationsToGeoJSON(data.locations) : null,
+    [data?.locations]
+  );
   const hasActiveFilters = selectedTypes.length > 0 || filters.categories.length > 0 || filters.inSeasonOnly;
   const showEmptyState = mapLoaded && !isLoading && !error && data?.count === 0;
 
-  // Choose which point layer to use based on whether icons loaded
-  const pointLayer = iconsLoaded ? unclusteredPointLayer : unclusteredPointFallbackLayer;
+  // Interactive layers for click handling
   const interactiveLayerIds = iconsLoaded 
     ? ['clusters', 'unclustered-point']
     : ['clusters', 'unclustered-point-fallback'];
@@ -422,10 +466,17 @@ export function ForagingMap() {
             cluster
             clusterMaxZoom={14}
             clusterRadius={50}
+            clusterProperties={{
+              // Sum up in-season markers for cluster display
+              inSeasonSum: ['+', ['get', 'inSeason']]
+            }}
+            generateId
           >
             <Layer {...clusterLayer} />
             <Layer {...clusterCountLayer} />
-            <Layer {...pointLayer} />
+            {/* Always render both layers but control visibility via filter */}
+            {iconsLoaded && <Layer {...unclusteredPointLayer} />}
+            {!iconsLoaded && <Layer {...unclusteredPointFallbackLayer} />}
           </Source>
         )}
       </Map>

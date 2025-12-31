@@ -336,3 +336,5 @@ VITE_APP_ENV=production
 - **Gamification** - Badges, contribution streaks
 - **AR Mode** - Camera overlay for location finding
 
+
+

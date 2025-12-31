@@ -287,3 +287,5 @@ async def get_stats(db: Database) -> dict:
         "types_total": types_count or 0
     }
 
+
+

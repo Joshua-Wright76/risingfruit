@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, X, Leaf } from 'lucide-react';
+import { Search, X, Leaf, Loader2 } from 'lucide-react';
 import { getTypes } from '../lib/api';
 import type { PlantType } from '../types/location';
 
@@ -33,9 +33,10 @@ const styles = {
     left: '16px',
     top: '50%',
     transform: 'translateY(-50%)',
-    width: '20px',
-    height: '20px',
-    color: '#737373',
+    width: '18px',
+    height: '18px',
+    color: 'var(--text-secondary)',
+    opacity: 0.7,
   },
   input: {
     width: '100%',
@@ -43,13 +44,16 @@ const styles = {
     paddingRight: '48px',
     paddingTop: '12px',
     paddingBottom: '12px',
-    backgroundColor: '#171717',
+    backgroundColor: 'var(--glass-bg)',
+    backdropFilter: 'blur(var(--glass-blur))',
+    WebkitBackdropFilter: 'blur(var(--glass-blur))',
     borderRadius: '16px',
-    border: '1px solid #404040',
-    color: '#f5f5f5',
+    border: '1px solid var(--glass-border)',
+    color: 'var(--text-primary)',
     outline: 'none',
-    fontSize: '16px',
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+    fontSize: '17px',
+    boxShadow: 'var(--glass-shadow)',
+    transition: 'all 0.2s ease',
   },
   clearButton: {
     position: 'absolute' as const,
@@ -61,33 +65,42 @@ const styles = {
     background: 'transparent',
     border: 'none',
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   selectedBadge: {
     position: 'absolute' as const,
-    bottom: '-28px',
+    bottom: '-24px',
     left: '0',
     right: '0',
     display: 'flex',
     justifyContent: 'center',
+    pointerEvents: 'none' as const,
   },
   badgeText: {
-    fontSize: '12px',
-    backgroundColor: 'rgba(22, 101, 52, 0.8)',
-    color: '#86efac',
-    padding: '4px 12px',
+    fontSize: '11px',
+    fontWeight: 600,
+    backgroundColor: 'var(--accent-green)',
+    color: 'white',
+    padding: '2px 10px',
     borderRadius: '9999px',
-    border: '1px solid #166534',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.02em',
   },
   dropdown: {
     position: 'absolute' as const,
     top: '100%',
     left: '0',
     right: '0',
-    marginTop: '8px',
-    backgroundColor: '#171717',
-    borderRadius: '16px',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-    border: '1px solid #404040',
+    marginTop: '10px',
+    backgroundColor: 'var(--glass-bg-elevated)',
+    backdropFilter: 'blur(var(--glass-blur))',
+    WebkitBackdropFilter: 'blur(var(--glass-blur))',
+    borderRadius: '18px',
+    boxShadow: 'var(--glass-shadow-elevated)',
+    border: '1px solid var(--glass-border)',
     overflow: 'hidden',
     zIndex: 50,
     maxHeight: '320px',
@@ -99,42 +112,38 @@ const styles = {
     justifyContent: 'center',
     padding: '32px 0',
   },
-  spinner: {
-    width: '24px',
-    height: '24px',
-    border: '2px solid transparent',
-    borderTop: '2px solid #22c55e',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-  },
   emptyState: {
     padding: '32px 16px',
     textAlign: 'center' as const,
-    color: '#a3a3a3',
+    color: 'var(--text-secondary)',
   },
   list: {
-    padding: '8px 0',
+    padding: '8px',
     margin: 0,
     listStyle: 'none',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
   },
   listItem: {
     width: '100%',
-    padding: '12px 16px',
+    padding: '10px 12px',
     textAlign: 'left' as const,
     backgroundColor: 'transparent',
     border: 'none',
+    borderRadius: '12px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    transition: 'background-color 0.15s ease',
+    gap: '14px',
+    transition: 'background-color 0.2s ease',
   },
   listItemIcon: {
     flexShrink: 0,
     width: '40px',
     height: '40px',
-    backgroundColor: 'rgba(22, 101, 52, 0.5)',
-    borderRadius: '8px',
+    backgroundColor: 'var(--separator)',
+    borderRadius: '10px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -145,27 +154,30 @@ const styles = {
   },
   listItemName: {
     margin: 0,
-    fontWeight: 500,
-    color: '#f5f5f5',
+    fontWeight: 600,
+    color: 'var(--text-primary)',
+    fontSize: '16px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap' as const,
   },
   listItemScientific: {
-    margin: '2px 0 0 0',
-    fontSize: '14px',
-    color: '#737373',
+    margin: '1px 0 0 0',
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
     fontStyle: 'italic' as const,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap' as const,
   },
   listItemCategory: {
-    fontSize: '12px',
-    color: '#737373',
-    backgroundColor: '#262626',
-    padding: '4px 8px',
-    borderRadius: '9999px',
+    fontSize: '11px',
+    fontWeight: 500,
+    color: 'var(--text-secondary)',
+    backgroundColor: 'var(--separator)',
+    padding: '3px 8px',
+    borderRadius: '8px',
+    textTransform: 'capitalize' as const,
   },
 };
 
@@ -214,9 +226,6 @@ export function SearchBar({ selectedTypes, onSelectType, onClearTypes }: SearchB
 
   return (
     <div ref={containerRef} style={styles.container}>
-      {/* Spinner keyframes */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      
       {/* Search input */}
       <div style={styles.inputWrapper}>
         <Search style={styles.searchIcon} />
@@ -230,11 +239,14 @@ export function SearchBar({ selectedTypes, onSelectType, onClearTypes }: SearchB
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="Search plants..."
-          style={styles.input}
+          style={{
+            ...styles.input,
+            borderColor: isOpen ? 'var(--accent-green)' : 'var(--glass-border)',
+          }}
         />
         {(query || selectedTypes.length > 0) && (
           <button onClick={handleClear} style={styles.clearButton} aria-label="Clear search">
-            <X style={{ width: '20px', height: '20px', color: '#a3a3a3' }} />
+            <X style={{ width: '20px', height: '20px', color: 'var(--text-tertiary)' }} />
           </button>
         )}
       </div>
@@ -243,24 +255,24 @@ export function SearchBar({ selectedTypes, onSelectType, onClearTypes }: SearchB
       {selectedTypes.length > 0 && (
         <div style={styles.selectedBadge}>
           <span style={styles.badgeText}>
-            Filtering by {selectedTypes.length} type{selectedTypes.length > 1 ? 's' : ''}
+            {selectedTypes.length} Active Filter{selectedTypes.length > 1 ? 's' : ''}
           </span>
         </div>
       )}
 
       {/* Dropdown */}
       {showDropdown && (
-        <div style={styles.dropdown}>
+        <div style={styles.dropdown} className="glass-elevated">
           {isLoading && (
             <div style={styles.loadingContainer}>
-              <div style={styles.spinner} />
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--accent-green)]" />
             </div>
           )}
 
           {!isLoading && types.length === 0 && (
             <div style={styles.emptyState}>
-              <Leaf style={{ width: '32px', height: '32px', margin: '0 auto 8px', color: '#525252' }} />
-              <p style={{ margin: 0 }}>No plants found for "{debouncedQuery}"</p>
+              <Leaf style={{ width: '32px', height: '32px', margin: '0 auto 12px', color: 'var(--text-tertiary)', opacity: 0.5 }} />
+              <p style={{ margin: 0, fontWeight: 500 }}>No results for "{debouncedQuery}"</p>
             </div>
           )}
 
@@ -274,11 +286,11 @@ export function SearchBar({ selectedTypes, onSelectType, onClearTypes }: SearchB
                     onMouseLeave={() => setHoveredIndex(null)}
                     style={{
                       ...styles.listItem,
-                      backgroundColor: hoveredIndex === index ? '#262626' : 'transparent',
+                      backgroundColor: hoveredIndex === index ? 'var(--separator)' : 'transparent',
                     }}
                   >
                     <div style={styles.listItemIcon}>
-                      <Leaf style={{ width: '20px', height: '20px', color: '#4ade80' }} />
+                      <Leaf style={{ width: '20px', height: '20px', color: 'var(--accent-green)' }} />
                     </div>
                     <div style={styles.listItemContent}>
                       <p style={styles.listItemName}>{type.en_name}</p>

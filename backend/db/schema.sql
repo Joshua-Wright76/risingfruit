@@ -146,3 +146,5 @@ BEGIN
     DELETE FROM locations_rtree WHERE id = OLD.id;
 END;
 
+
+

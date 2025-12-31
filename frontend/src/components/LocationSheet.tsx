@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { X, Navigation, Calendar, Lock, Leaf, ExternalLink, Share2, Check, Copy } from 'lucide-react';
 import { getLocation } from '../lib/api';
 import { getFallbackSeason, formatFallbackSeason } from '../lib/fruitSeasons';
+import { surface, primary, accent, semantic } from '../lib/colors';
 import type { LocationDetail } from '../types/location';
 
 interface LocationSheetProps {
@@ -111,15 +112,15 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
           minHeight: '200px',
           zIndex: 9999,
           transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
-          backgroundColor: '#171717',
-          borderTop: '1px solid #404040',
+          backgroundColor: surface[900],
+          borderTop: `1px solid ${surface[700]}`,
           borderTopLeftRadius: '24px',
           borderTopRightRadius: '24px',
         }}
       >
         {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '12px', paddingBottom: '8px' }}>
-          <div style={{ width: '40px', height: '4px', backgroundColor: '#525252', borderRadius: '9999px' }} />
+          <div style={{ width: '40px', height: '4px', backgroundColor: surface[600], borderRadius: '9999px' }} />
         </div>
 
         {/* Close button */}
@@ -138,7 +139,7 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
           }}
           aria-label="Close"
         >
-          <X style={{ width: '20px', height: '20px', color: '#a3a3a3' }} />
+          <X style={{ width: '20px', height: '20px', color: surface[400] }} />
         </button>
 
         {/* Content */}
@@ -148,7 +149,7 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
               <div style={{ 
                 width: '32px', 
                 height: '32px', 
-                border: '3px solid #22c55e',
+                border: `3px solid ${primary[500]}`,
                 borderTopColor: 'transparent',
                 borderRadius: '50%',
                 animation: 'spin 1s linear infinite'
@@ -159,7 +160,7 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
 
           {error && (
             <div style={{ textAlign: 'center', padding: '48px 0' }}>
-              <p style={{ color: '#f87171', margin: 0 }}>Failed to load location details</p>
+              <p style={{ color: semantic.error, margin: 0 }}>Failed to load location details</p>
             </div>
           )}
 
@@ -171,27 +172,7 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
   );
 }
 
-// Style constants for the sheet content
-const styles = {
-  colors: {
-    surface50: '#fafafa',
-    surface200: '#e5e5e5',
-    surface300: '#d4d4d4',
-    surface400: '#a3a3a3',
-    surface500: '#737373',
-    surface600: '#525252',
-    surface800: '#262626',
-    primary400: '#4ade80',
-    primary500: '#22c55e',
-    primary600: '#16a34a',
-    primary800: '#166534',
-    primary900: '#14532d',
-    accent300: '#fdba74',
-    accent400: '#fb923c',
-    accent700: '#c2410c',
-    accent900: '#7c2d12',
-  }
-};
+// Colors imported from centralized color system - see src/lib/colors.ts
 
 function LocationContent({ location }: { location: LocationDetail }) {
   const primaryType = location.types[0];
@@ -232,19 +213,19 @@ function LocationContent({ location }: { location: LocationDetail }) {
           flexShrink: 0, 
           width: '48px', 
           height: '48px', 
-          backgroundColor: `${styles.colors.primary900}80`,
+          backgroundColor: `${primary[900]}80`,
           borderRadius: '12px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          <Leaf style={{ width: '24px', height: '24px', color: styles.colors.primary400 }} />
+          <Leaf style={{ width: '24px', height: '24px', color: primary[400] }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ 
             fontSize: '20px', 
             fontWeight: 600, 
-            color: styles.colors.surface50,
+            color: surface[50],
             margin: 0,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -255,7 +236,7 @@ function LocationContent({ location }: { location: LocationDetail }) {
           {primaryType?.scientific_name && (
             <p style={{ 
               fontSize: '14px', 
-              color: styles.colors.surface500, 
+              color: surface[500], 
               fontStyle: 'italic',
               margin: '4px 0 0 0',
               overflow: 'hidden',
@@ -278,15 +259,15 @@ function LocationContent({ location }: { location: LocationDetail }) {
           }}
           aria-label="Share location"
         >
-          {shareStatus === 'idle' && <Share2 style={{ width: '20px', height: '20px', color: styles.colors.surface400 }} />}
-          {shareStatus === 'copied' && <Copy style={{ width: '20px', height: '20px', color: styles.colors.primary400 }} />}
-          {shareStatus === 'shared' && <Check style={{ width: '20px', height: '20px', color: styles.colors.primary400 }} />}
+          {shareStatus === 'idle' && <Share2 style={{ width: '20px', height: '20px', color: surface[400] }} />}
+          {shareStatus === 'copied' && <Copy style={{ width: '20px', height: '20px', color: primary[400] }} />}
+          {shareStatus === 'shared' && <Check style={{ width: '20px', height: '20px', color: primary[400] }} />}
         </button>
       </div>
 
       {/* Description */}
       {location.description && (
-        <p style={{ color: styles.colors.surface300, lineHeight: 1.6, margin: 0 }}>
+        <p style={{ color: surface[300], lineHeight: 1.6, margin: 0 }}>
           {location.description}
         </p>
       )}
@@ -297,16 +278,16 @@ function LocationContent({ location }: { location: LocationDetail }) {
         {(() => {
           const seasonInfo = formatSeason(location.season_start, location.season_stop, location.no_season, location.type_ids);
           return (
-            <div style={{ backgroundColor: styles.colors.surface800, borderRadius: '12px', padding: '16px' }}>
+            <div style={{ backgroundColor: surface[800], borderRadius: '12px', padding: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <Calendar style={{ width: '16px', height: '16px', color: styles.colors.primary400 }} />
-                <span style={{ fontSize: '12px', fontWeight: 500, color: styles.colors.surface500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Season</span>
+                <Calendar style={{ width: '16px', height: '16px', color: primary[400] }} />
+                <span style={{ fontSize: '12px', fontWeight: 500, color: surface[500], textTransform: 'uppercase', letterSpacing: '0.05em' }}>Season</span>
               </div>
-              <p style={{ fontSize: '14px', fontWeight: 500, color: styles.colors.surface200, margin: 0 }}>
+              <p style={{ fontSize: '14px', fontWeight: 500, color: surface[200], margin: 0 }}>
                 {seasonInfo.text}
               </p>
               {seasonInfo.isFallback && (
-                <p style={{ fontSize: '11px', color: styles.colors.surface500, margin: '4px 0 0 0', fontStyle: 'italic' }}>
+                <p style={{ fontSize: '11px', color: surface[500], margin: '4px 0 0 0', fontStyle: 'italic' }}>
                   (typical for this plant)
                 </p>
               )}
@@ -315,12 +296,12 @@ function LocationContent({ location }: { location: LocationDetail }) {
         })()}
 
         {/* Access */}
-        <div style={{ backgroundColor: styles.colors.surface800, borderRadius: '12px', padding: '16px' }}>
+        <div style={{ backgroundColor: surface[800], borderRadius: '12px', padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <Lock style={{ width: '16px', height: '16px', color: location.access?.toLowerCase().includes('private') ? styles.colors.accent400 : styles.colors.surface500 }} />
-            <span style={{ fontSize: '12px', fontWeight: 500, color: styles.colors.surface500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Access</span>
+            <Lock style={{ width: '16px', height: '16px', color: location.access?.toLowerCase().includes('private') ? accent[400] : surface[500] }} />
+            <span style={{ fontSize: '12px', fontWeight: 500, color: surface[500], textTransform: 'uppercase', letterSpacing: '0.05em' }}>Access</span>
           </div>
-          <p style={{ fontSize: '14px', fontWeight: 500, color: styles.colors.surface200, margin: 0 }}>
+          <p style={{ fontSize: '14px', fontWeight: 500, color: surface[200], margin: 0 }}>
             {location.access || 'Unknown'}
           </p>
         </div>
@@ -329,18 +310,18 @@ function LocationContent({ location }: { location: LocationDetail }) {
       {/* Additional types */}
       {location.types.length > 1 && (
         <div>
-          <p style={{ fontSize: '12px', fontWeight: 500, color: styles.colors.surface500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Also contains</p>
+          <p style={{ fontSize: '12px', fontWeight: 500, color: surface[500], textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Also contains</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {location.types.slice(1).map((type) => (
               <span
                 key={type.id}
                 style={{
                   padding: '4px 12px',
-                  backgroundColor: `${styles.colors.primary900}80`,
-                  color: styles.colors.primary400,
+                  backgroundColor: `${primary[900]}80`,
+                  color: primary[400],
                   borderRadius: '9999px',
                   fontSize: '14px',
-                  border: `1px solid ${styles.colors.primary800}`
+                  border: `1px solid ${primary[800]}`
                 }}
               >
                 {type.en_name}
@@ -353,12 +334,12 @@ function LocationContent({ location }: { location: LocationDetail }) {
       {/* Verification status */}
       {location.unverified && (
         <div style={{ 
-          backgroundColor: `${styles.colors.accent900}4d`, 
-          border: `1px solid ${styles.colors.accent700}`,
+          backgroundColor: `${accent[900]}4d`, 
+          border: `1px solid ${accent[700]}`,
           borderRadius: '12px',
           padding: '12px'
         }}>
-          <p style={{ fontSize: '14px', color: styles.colors.accent300, margin: 0 }}>
+          <p style={{ fontSize: '14px', color: accent[300], margin: 0 }}>
             ⚠️ This location has not been verified
           </p>
         </div>
@@ -377,7 +358,7 @@ function LocationContent({ location }: { location: LocationDetail }) {
             gap: '8px',
             width: '100%',
             padding: '14px',
-            backgroundColor: styles.colors.primary600,
+            backgroundColor: primary[600],
             color: 'white',
             fontWeight: 500,
             borderRadius: '12px',
@@ -393,7 +374,7 @@ function LocationContent({ location }: { location: LocationDetail }) {
 
       {/* Meta info */}
       {location.author && (
-        <p style={{ fontSize: '12px', color: styles.colors.surface600, textAlign: 'center', margin: 0 }}>
+        <p style={{ fontSize: '12px', color: surface[600], textAlign: 'center', margin: 0 }}>
           Added by {location.author}
         </p>
       )}

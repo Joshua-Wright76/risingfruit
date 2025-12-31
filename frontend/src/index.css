@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/**
+ * Color Theme for Tailwind CSS
+ * 
+ * IMPORTANT: These values are duplicated in src/lib/colors.ts for use in JS/TS code.
+ * When updating colors, make sure to update both files!
+ * 
+ * The colors.ts file is the source of truth for documentation.
+ * See: src/lib/colors.ts
+ */
+
 @theme {
   /* Primary - nature green */
   --color-primary-50: #f0fdf4;
@@ -38,8 +48,8 @@
   --color-surface-100: #f5f5f5;
   --color-surface-50: #fafafa;
 
-  /* Typography */
-  --font-sans: 'DM Sans', system-ui, sans-serif;
+  /* Typography - includes unicode emoji support */
+  --font-sans: 'DM Sans', system-ui, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
 }
 
 /* Reset and base styles */

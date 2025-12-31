@@ -24,11 +24,13 @@ function getCurrentMonth(): string {
 
 const styles = {
   container: {
-    backgroundColor: '#171717',
+    backgroundColor: 'var(--glass-bg)',
+    backdropFilter: 'blur(var(--glass-blur))',
+    WebkitBackdropFilter: 'blur(var(--glass-blur))',
     borderRadius: '16px',
-    border: '1px solid #404040',
+    border: '1px solid var(--glass-border)',
     overflow: 'hidden',
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+    boxShadow: 'var(--glass-shadow)',
   },
   toggleButton: {
     width: '100%',
@@ -41,21 +43,26 @@ const styles = {
     cursor: 'pointer',
   } as React.CSSProperties,
   badge: {
-    backgroundColor: '#22c55e',
+    backgroundColor: 'var(--accent-green)',
     color: 'white',
-    fontSize: '12px',
-    fontWeight: 500,
-    padding: '2px 8px',
+    fontSize: '11px',
+    fontWeight: 700,
+    minWidth: '18px',
+    height: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0 4px',
     borderRadius: '9999px',
   },
   expandedContent: {
     padding: '0 16px 16px 16px',
-    borderTop: '1px solid #404040',
+    borderTop: '1px solid var(--separator)',
   },
   sectionTitle: {
     fontSize: '11px',
     fontWeight: 600,
-    color: '#737373',
+    color: 'var(--text-secondary)',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
     marginBottom: '8px',
@@ -73,12 +80,12 @@ const styles = {
     padding: '10px 12px',
     borderRadius: '12px',
     fontSize: '14px',
-    fontWeight: 500,
+    fontWeight: 600,
     border: 'none',
     cursor: 'pointer',
-    backgroundColor: isActive ? '#16a34a' : '#262626',
-    color: isActive ? 'white' : '#d4d4d4',
-    transition: 'all 0.15s ease',
+    backgroundColor: isActive ? 'var(--accent-green)' : 'var(--separator)',
+    color: isActive ? 'white' : 'var(--text-primary)',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
   } as React.CSSProperties),
   seasonButton: (isActive: boolean) => ({
     width: '100%',
@@ -88,23 +95,26 @@ const styles = {
     padding: '12px 16px',
     borderRadius: '12px',
     fontSize: '14px',
-    fontWeight: 500,
+    fontWeight: 600,
     border: 'none',
     cursor: 'pointer',
-    backgroundColor: isActive ? '#ea580c' : '#262626',
-    color: isActive ? 'white' : '#d4d4d4',
+    backgroundColor: isActive ? 'var(--accent-orange)' : 'var(--separator)',
+    color: isActive ? 'white' : 'var(--text-primary)',
     textAlign: 'left' as const,
-    transition: 'all 0.15s ease',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
   } as React.CSSProperties),
   clearButton: {
     width: '100%',
-    padding: '8px',
+    padding: '10px',
     marginTop: '12px',
-    fontSize: '14px',
-    color: '#737373',
+    fontSize: '13px',
+    fontWeight: 600,
+    color: 'var(--accent-red)',
     background: 'transparent',
     border: 'none',
     cursor: 'pointer',
+    borderRadius: '12px',
+    backgroundColor: 'var(--separator)',
   },
 };
 
@@ -128,16 +138,16 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
     <div data-testid="filter-panel" style={styles.container}>
       {/* Toggle button */}
       <button onClick={() => setIsExpanded(!isExpanded)} style={styles.toggleButton}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 500, color: '#e5e5e5' }}>Filters</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '16px' }}>Filters</span>
           {activeFilterCount > 0 && (
             <span data-testid="filter-badge" style={styles.badge}>{activeFilterCount}</span>
           )}
         </div>
         {isExpanded ? (
-          <ChevronUp style={{ width: '20px', height: '20px', color: '#a3a3a3' }} />
+          <ChevronUp style={{ width: '20px', height: '20px', color: 'var(--text-tertiary)' }} />
         ) : (
-          <ChevronDown style={{ width: '20px', height: '20px', color: '#a3a3a3' }} />
+          <ChevronDown style={{ width: '20px', height: '20px', color: 'var(--text-tertiary)' }} />
         )}
       </button>
 
@@ -157,7 +167,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
                   onClick={() => toggleCategory(id)}
                   style={styles.categoryButton(isActive)}
                 >
-                  <Icon style={{ width: '16px', height: '16px', color: isActive ? 'white' : '#737373' }} />
+                  <Icon style={{ width: '16px', height: '16px', color: isActive ? 'white' : 'var(--text-secondary)' }} />
                   {label}
                 </button>
               );
@@ -167,15 +177,16 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
           {/* Season filter */}
           <p data-testid="season-label" style={styles.sectionTitle}>Season</p>
           <button data-testid="season-filter" data-active={filters.inSeasonOnly} onClick={toggleSeasonFilter} style={styles.seasonButton(filters.inSeasonOnly)}>
-            <Calendar style={{ width: '20px', height: '20px', color: filters.inSeasonOnly ? 'white' : '#737373' }} />
+            <Calendar style={{ width: '20px', height: '20px', color: filters.inSeasonOnly ? 'white' : 'var(--text-secondary)' }} />
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0 }}>In season now</p>
               <p style={{ 
                 margin: '2px 0 0 0', 
                 fontSize: '12px', 
-                color: filters.inSeasonOnly ? 'rgba(255,255,255,0.7)' : '#737373' 
+                fontWeight: 500,
+                color: filters.inSeasonOnly ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)' 
               }}>
-                Showing plants for {getCurrentMonth()}
+                {getCurrentMonth()} harvest
               </p>
             </div>
           </button>
@@ -186,7 +197,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
               onClick={() => onFilterChange({ categories: [], inSeasonOnly: false })}
               style={styles.clearButton}
             >
-              Clear all filters
+              Reset Filters
             </button>
           )}
         </div>
