@@ -44,7 +44,7 @@ test.describe('Search Functionality', () => {
     }
   });
 
-  test('should show selected types as chips', async ({ mapPage, page }) => {
+  test('should show selected types indicator', async ({ mapPage, page }) => {
     await mapPage.waitForLocationsLoaded();
     
     // Search and select a type
@@ -58,9 +58,9 @@ test.describe('Search Functionality', () => {
       await figResult.click();
       await page.waitForTimeout(500);
       
-      // Check for a chip/tag showing the selected type
-      const chip = page.locator('text=/Fig/i').first();
-      await expect(chip).toBeVisible();
+      // Check for the "Filtering by X type(s)" indicator
+      const filterIndicator = page.locator('text=/Filtering by 1 type/i');
+      await expect(filterIndicator).toBeVisible();
     }
   });
 
