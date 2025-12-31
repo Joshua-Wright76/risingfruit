@@ -43,8 +43,7 @@ jobs:
       - name: Create env file for tests
         run: |
           cd frontend
-          # Pointing to existing HTTP API to bootstrap HTTPS migration
-          echo "VITE_API_BASE_URL=http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000" > .env.local
+          echo "VITE_API_BASE_URL=https://16.144.65.155.sslip.io" > .env.local
           echo "VITE_MAPBOX_TOKEN=${{ secrets.MAPBOX_TOKEN }}" >> .env.local
 
       - name: Run Playwright tests
@@ -65,8 +64,7 @@ jobs:
   deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
-    # FINAL BOOTSTRAP: Bypassing tests because port 8000 is currently closed on live server
-    # needs: test
+    needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
