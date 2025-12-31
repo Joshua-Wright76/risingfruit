@@ -158,7 +158,7 @@ jobs:
 
       - name: Copy backend files to EC2
         run: |
-          rsync -avz --delete --exclude='data/' --exclude='frontend/' \
+          rsync -avz --delete --exclude='data/' --exclude='frontend/' --exclude='certbot/' \
             -e "ssh -i ~/.ssh/ec2_key" \
             ./backend/ \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/risingfruit/backend/
