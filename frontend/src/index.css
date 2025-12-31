@@ -1,56 +1,11 @@
-@import "tailwindcss";
-
 /**
- * Color Theme for Tailwind CSS
+ * Rising Fruit Global Styles
  * 
- * IMPORTANT: These values are duplicated in src/lib/colors.ts for use in JS/TS code.
- * When updating colors, make sure to update both files!
- * 
- * The colors.ts file is the source of truth for documentation.
- * See: src/lib/colors.ts
+ * Note: Most styling is now handled by Mantine.
+ * This file contains only:
+ * - Base reset styles
+ * - Mapbox GL control overrides for dark theme
  */
-
-@theme {
-  /* Primary - nature green */
-  --color-primary-50: #f0fdf4;
-  --color-primary-100: #dcfce7;
-  --color-primary-200: #bbf7d0;
-  --color-primary-300: #86efac;
-  --color-primary-400: #4ade80;
-  --color-primary-500: #22c55e;
-  --color-primary-600: #16a34a;
-  --color-primary-700: #15803d;
-  --color-primary-800: #166534;
-  --color-primary-900: #14532d;
-
-  /* Accent - fruit orange */
-  --color-accent-50: #fff7ed;
-  --color-accent-100: #ffedd5;
-  --color-accent-200: #fed7aa;
-  --color-accent-300: #fdba74;
-  --color-accent-400: #fb923c;
-  --color-accent-500: #f97316;
-  --color-accent-600: #ea580c;
-  --color-accent-700: #c2410c;
-  --color-accent-800: #9a3412;
-  --color-accent-900: #7c2d12;
-
-  /* Dark theme surfaces */
-  --color-surface-950: #0a0a0a;
-  --color-surface-900: #171717;
-  --color-surface-800: #262626;
-  --color-surface-700: #404040;
-  --color-surface-600: #525252;
-  --color-surface-500: #737373;
-  --color-surface-400: #a3a3a3;
-  --color-surface-300: #d4d4d4;
-  --color-surface-200: #e5e5e5;
-  --color-surface-100: #f5f5f5;
-  --color-surface-50: #fafafa;
-
-  /* Typography - includes unicode emoji support */
-  --font-sans: 'DM Sans', system-ui, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
-}
 
 /* Reset and base styles */
 html, body, #root {
@@ -60,17 +15,14 @@ html, body, #root {
 }
 
 body {
-  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-surface-950);
-  color: var(--color-surface-50);
 }
 
 /* Mapbox control overrides for dark theme */
 .mapboxgl-ctrl-group {
-  background: var(--color-surface-900) !important;
-  border: 1px solid var(--color-surface-700) !important;
+  background: #171717 !important;
+  border: 1px solid #404040 !important;
   box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.4) !important;
 }
 
@@ -79,7 +31,7 @@ body {
 }
 
 .mapboxgl-ctrl-group button + button {
-  border-top: 1px solid var(--color-surface-700) !important;
+  border-top: 1px solid #404040 !important;
 }
 
 .mapboxgl-ctrl-icon {
@@ -93,30 +45,4 @@ body {
 
 .mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon {
   filter: invert(0) sepia(1) saturate(5) hue-rotate(90deg) !important;
-}
-
-/* Loading skeleton animation */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-800) 25%,
-    var(--color-surface-700) 50%,
-    var(--color-surface-800) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-/* Smooth transitions for interactive elements */
-.transition-surface {
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }

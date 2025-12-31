@@ -1,3 +1,4 @@
+import { Paper, Box, Text, Button, Center, Stack } from '@mantine/core';
 import { MapPin, FilterX } from 'lucide-react';
 
 interface EmptyStateProps {
@@ -7,34 +8,69 @@ interface EmptyStateProps {
 
 export function EmptyState({ hasFilters, onClearFilters }: EmptyStateProps) {
   return (
-    <div className="absolute bottom-24 left-4 right-4 z-10 animate-slide-up">
-      <div className="glass-elevated rounded-2xl p-6">
-        <div className="flex flex-col items-center text-center">
-          <div className="w-14 h-14 bg-[var(--separator)] rounded-full flex items-center justify-center mb-4">
-            <MapPin className="h-7 w-7 text-[var(--text-tertiary)]" />
-          </div>
+    <Box
+      pos="absolute"
+      bottom={96}
+      left={16}
+      right={16}
+      style={{ zIndex: 10, pointerEvents: 'none' }}
+    >
+      <Paper
+        p={24}
+        radius="lg"
+        shadow="lg"
+        maw={400}
+        mx="auto"
+        style={{
+          backgroundColor: 'rgba(38, 38, 38, 0.95)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(64, 64, 64, 0.5)',
+          pointerEvents: 'auto',
+        }}
+      >
+        <Stack align="center" gap={0}>
+          <Center
+            w={56}
+            h={56}
+            mb={16}
+            style={{
+              backgroundColor: 'var(--mantine-color-surface-8)',
+              borderRadius: '50%',
+            }}
+          >
+            <MapPin size={28} style={{ color: 'var(--mantine-color-gray-5)' }} />
+          </Center>
           
-          <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">
+          <Text size="lg" fw={700} c="gray.0" mb={8}>
             No locations found
-          </h3>
+          </Text>
           
-          <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-xs font-medium">
+          <Text size="sm" c="gray.5" ta="center" fw={500} mb={24} maw={280}>
             {hasFilters
               ? "Try adjusting your filters or search to see more results."
               : "Try zooming out or panning to a different area."}
-          </p>
+          </Text>
           
           {hasFilters && (
-            <button
+            <Button
               onClick={onClearFilters}
-              className="flex items-center gap-2 px-6 py-3 bg-[var(--accent-green)] text-white rounded-xl transition-all active:scale-95 shadow-lg shadow-green-500/20"
+              leftSection={<FilterX size={16} />}
+              color="primary.5"
+              radius="lg"
+              size="md"
+              fw={700}
+              styles={{
+                root: {
+                  boxShadow: '0 4px 14px rgba(34, 197, 94, 0.2)',
+                },
+              }}
             >
-              <FilterX className="h-4 w-4" />
-              <span className="text-sm font-bold">Reset Filters</span>
-            </button>
+              Reset Filters
+            </Button>
           )}
-        </div>
-      </div>
-    </div>
+        </Stack>
+      </Paper>
+    </Box>
   );
 }

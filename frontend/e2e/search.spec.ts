@@ -58,8 +58,8 @@ test.describe('Search Functionality', () => {
       await figResult.click();
       await page.waitForTimeout(500);
       
-      // Check for the "Filtering by X type(s)" indicator
-      const filterIndicator = page.locator('text=/Filtering by 1 type/i');
+      // Check for the active filter indicator badge
+      const filterIndicator = page.locator('text=/1 Active Filter/i');
       await expect(filterIndicator).toBeVisible();
     }
   });

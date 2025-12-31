@@ -10,9 +10,10 @@ import Map, {
   type MapMouseEvent,
 } from 'react-map-gl/mapbox';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { Box, Paper, Text, Group, Loader, Button, Stack } from '@mantine/core';
 import { Leaf } from 'lucide-react';
 import { getLocations } from '../lib/api';
-import { marker } from '../lib/colors';
+import { marker, primary, surface } from '../lib/colors';
 import type { BoundingBox, Location, PlantType } from '../types/location';
 import type { FeatureCollection, Point } from 'geojson';
 import { LocationSheet } from './LocationSheet';
@@ -22,7 +23,7 @@ import { EmptyState } from './EmptyState';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { markerIcons } from './MarkerIcons';
 import { fruitIcons, fruitIconsInSeason, getIconForTypes, defaultIcon, defaultIconInSeason } from './FruitIcons';
-import { isIconInSeason } from '../lib/fruitSeasons';
+import { isIconInSeason, areTypeIdsInSeason } from '../lib/fruitSeasons';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -34,29 +35,6 @@ const INITIAL_VIEW = {
   zoom: 12,
 };
 
-// Check if a location is in season based on its season data
-function isLocationInSeason(loc: Location): boolean {
-  // If no season info, assume always in season
-  if (!loc.season_start && !loc.season_stop) return true;
-  
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
-  const currentMonthIndex = months.indexOf(currentMonth);
-  
-  const startIndex = loc.season_start ? months.indexOf(loc.season_start) : 0;
-  const stopIndex = loc.season_stop ? months.indexOf(loc.season_stop) : 11;
-  
-  // Handle wrap-around seasons (e.g., Nov-Feb)
-  if (startIndex <= stopIndex) {
-    return currentMonthIndex >= startIndex && currentMonthIndex <= stopIndex;
-  } else {
-    return currentMonthIndex >= startIndex || currentMonthIndex <= stopIndex;
-  }
-}
-
 // Convert locations to GeoJSON for clustering
 function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
   return {
@@ -65,10 +43,10 @@ function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
       // Determine which icon to use based on type IDs
       const fruitIcon = getIconForTypes(loc.type_ids);
       // Check if the fruit is currently in season (for green border)
-      // For fruit icons, use the icon's season; for default, use location's season data
+      // For fruit icons, use the icon's season; for default, use type-based season lookup
       const fruitInSeason = fruitIcon 
         ? isIconInSeason(fruitIcon) 
-        : isLocationInSeason(loc);
+        : areTypeIdsInSeason(loc.type_ids);
       return {
         type: 'Feature' as const,
         id: loc.id,
@@ -92,30 +70,76 @@ function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
   };
 }
 
-// Cluster layer style - colors from src/lib/colors.ts
-// Uses grey colors for dark mode - edit marker.cluster in colors.ts to customize
+// Generate SVG for cluster with percentage arc indicator
+// The arc shows what percentage of items in the cluster are in season
+const generateClusterSvg = (percentage: number, size: number): string => {
+  const strokeWidth = 4;
+  const radius = (size - strokeWidth) / 2;
+  const center = size / 2;
+  const circumference = 2 * Math.PI * radius;
+  const arcLength = (percentage / 100) * circumference;
+  const gapLength = circumference - arcLength;
+  
+  // Rotate to start from top (-90 degrees)
+  const rotation = -90;
+  
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background circle -->
+    <circle cx="${center}" cy="${center}" r="${radius}" fill="${surface[800]}" stroke="${surface[700]}" stroke-width="2"/>
+    <!-- Progress arc (green) -->
+    <circle 
+      cx="${center}" 
+      cy="${center}" 
+      r="${radius}" 
+      fill="none" 
+      stroke="${primary[500]}" 
+      stroke-width="${strokeWidth}"
+      stroke-dasharray="${arcLength} ${gapLength}"
+      stroke-linecap="round"
+      transform="rotate(${rotation} ${center} ${center})"
+    />
+  </svg>`;
+};
+
+// Pre-generate cluster icons at 5% increments for different sizes
+const CLUSTER_SIZES = [40, 60, 80]; // Small, medium, large clusters
+const PERCENTAGE_STEPS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+
+const clusterIcons: Record<string, string> = {};
+CLUSTER_SIZES.forEach(size => {
+  PERCENTAGE_STEPS.forEach(pct => {
+    const key = `cluster-${size}-${pct}`;
+    clusterIcons[key] = `data:image/svg+xml,${encodeURIComponent(generateClusterSvg(pct, size))}`;
+  });
+});
+
+// Cluster layer - uses symbol layer with percentage arc icons
 const clusterLayer: LayerProps = {
   id: 'clusters',
-  type: 'circle',
+  type: 'symbol',
   source: 'locations',
   filter: ['has', 'point_count'],
-  paint: {
-    'circle-color': [
-      'step',
-      ['get', 'point_count'],
-      marker.cluster.low,     // Low density
-      50,
-      marker.cluster.medium,  // Medium density
-      200,
-      marker.cluster.high,    // High density
+  layout: {
+    'icon-image': [
+      'concat',
+      'cluster-',
+      // Size based on point count
+      ['step', ['get', 'point_count'], '40', 50, '60', 200, '80'],
+      '-',
+      // Percentage rounded to nearest 5%
+      [
+        '*',
+        5,
+        ['round', ['/', ['*', 100, ['/', ['get', 'inSeasonSum'], ['get', 'point_count']]], 5]]
+      ]
     ],
-    'circle-radius': ['step', ['get', 'point_count'], 20, 50, 30, 200, 40],
-    'circle-stroke-width': 2,
-    'circle-stroke-color': marker.cluster.stroke,
+    'icon-size': 1,
+    'icon-allow-overlap': true,
   },
 };
 
-// Cluster count label - shows "inSeason/total" (e.g., "12/77")
+// Cluster count - combined text, properly centered
+// Green arc already shows the percentage visually
 const clusterCountLayer: LayerProps = {
   id: 'cluster-count',
   type: 'symbol',
@@ -124,15 +148,17 @@ const clusterCountLayer: LayerProps = {
   layout: {
     'text-field': [
       'concat',
-      ['get', 'inSeasonSum'],
+      ['to-string', ['get', 'inSeasonSum']],
       '/',
-      ['get', 'point_count_abbreviated']
+      ['to-string', ['get', 'point_count']]
     ],
-    'text-font': ['DIN Pro Medium', 'Arial Unicode MS Bold'],
+    'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
     'text-size': 12,
+    'text-anchor': 'center',
+    'text-allow-overlap': true,
   },
   paint: {
-    'text-color': marker.cluster.text,
+    'text-color': '#ffffff',
   },
 };
 
@@ -194,7 +220,6 @@ export function ForagingMap() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [iconsLoaded, setIconsLoaded] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
-    categories: [],
     inSeasonOnly: false,
   });
 
@@ -284,7 +309,12 @@ export function ForagingMap() {
       ([name, dataUri]) => [`fruit-inseason-${name}`, dataUri]
     );
 
-    const allIconEntries = [...baseIconEntries, ...fruitIconEntries, ...fruitInSeasonIconEntries];
+    // Cluster percentage arc icons
+    const clusterIconEntries: [string, string][] = Object.entries(clusterIcons).map(
+      ([name, dataUri]) => [name, dataUri]
+    );
+
+    const allIconEntries = [...baseIconEntries, ...fruitIconEntries, ...fruitInSeasonIconEntries, ...clusterIconEntries];
 
     let loadedCount = 0;
     const totalIcons = allIconEntries.length;
@@ -394,7 +424,7 @@ export function ForagingMap() {
 
   const handleClearFilters = useCallback(() => {
     setSelectedTypes([]);
-    setFilters({ categories: [], inSeasonOnly: false });
+    setFilters({ inSeasonOnly: false });
   }, []);
 
   // Memoize GeoJSON to prevent unnecessary re-renders during pan/zoom
@@ -402,7 +432,7 @@ export function ForagingMap() {
     () => data?.locations ? locationsToGeoJSON(data.locations) : null,
     [data?.locations]
   );
-  const hasActiveFilters = selectedTypes.length > 0 || filters.categories.length > 0 || filters.inSeasonOnly;
+  const hasActiveFilters = selectedTypes.length > 0 || filters.inSeasonOnly;
   const showEmptyState = mapLoaded && !isLoading && !error && data?.count === 0;
 
   // Interactive layers for click handling
@@ -412,29 +442,38 @@ export function ForagingMap() {
 
   if (!MAPBOX_TOKEN) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-surface-950">
-        <div className="text-center p-8">
-          <Leaf className="mx-auto h-16 w-16 text-primary-500 mb-4" />
-          <h2 className="text-xl font-semibold text-surface-50 mb-2">
+      <Box
+        w="100%"
+        h="100%"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'var(--mantine-color-surface-9)',
+        }}
+      >
+        <Stack align="center" p={32} gap={16}>
+          <Leaf size={64} style={{ color: 'var(--mantine-color-primary-5)' }} />
+          <Text size="xl" fw={600} c="gray.0">
             Mapbox Token Required
-          </h2>
-          <p className="text-surface-400 max-w-md">
+          </Text>
+          <Text c="gray.4" maw={400} ta="center">
             Add your Mapbox access token to{' '}
-            <code className="bg-surface-800 px-2 py-1 rounded text-sm text-primary-400">
+            <Text component="code" px={8} py={4} style={{ backgroundColor: 'var(--mantine-color-surface-8)', borderRadius: 4 }} size="sm" c="primary.4">
               .env.local
-            </code>{' '}
+            </Text>{' '}
             as{' '}
-            <code className="bg-surface-800 px-2 py-1 rounded text-sm text-primary-400">
+            <Text component="code" px={8} py={4} style={{ backgroundColor: 'var(--mantine-color-surface-8)', borderRadius: 4 }} size="sm" c="primary.4">
               VITE_MAPBOX_TOKEN
-            </code>
-          </p>
-        </div>
-      </div>
+            </Text>
+          </Text>
+        </Stack>
+      </Box>
     );
   }
 
   return (
-    <div className="relative bg-surface-950" style={{ width: '100%', height: '100%' }}>
+    <Box pos="relative" w="100%" h="100%" style={{ backgroundColor: 'var(--mantine-color-surface-9)' }}>
       {/* Loading skeleton while map initializes */}
       {!mapLoaded && <LoadingSkeleton />}
 
@@ -482,44 +521,76 @@ export function ForagingMap() {
       </Map>
 
       {/* Search and filters */}
-      <div style={{ 
-        position: 'absolute', 
-        top: '16px', 
-        left: '16px', 
-        right: '16px', 
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px'
-      }}>
-        <SearchBar
-          selectedTypes={selectedTypes}
-          onSelectType={handleSelectType}
-          onClearTypes={handleClearTypes}
-        />
-        <FilterPanel
-          filters={filters}
-          onFilterChange={setFilters}
-        />
-      </div>
+      <Box
+        pos="absolute"
+        top={16}
+        left={16}
+        right={16}
+        style={{ zIndex: 1000 }}
+      >
+        <Stack gap={12}>
+          <SearchBar
+            selectedTypes={selectedTypes}
+            onSelectType={handleSelectType}
+            onClearTypes={handleClearTypes}
+          />
+          <FilterPanel
+            filters={filters}
+            onFilterChange={setFilters}
+          />
+        </Stack>
+      </Box>
 
       {/* Loading indicator */}
       {isLoading && mapLoaded && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-surface-900/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-surface-700 z-10">
-          <div className="flex items-center gap-2 text-primary-400">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
-            <span className="text-sm font-medium">Loading...</span>
-          </div>
-        </div>
+        <Paper
+          pos="absolute"
+          bottom={96}
+          left="50%"
+          style={{
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+            backgroundColor: 'rgba(23, 23, 23, 0.95)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid var(--mantine-color-surface-7)',
+            pointerEvents: 'none',
+          }}
+          px={16}
+          py={8}
+          radius="xl"
+          shadow="lg"
+        >
+          <Group gap={8}>
+            <Loader size={16} color="primary.5" />
+            <Text size="sm" fw={500} c="primary.4">Loading...</Text>
+          </Group>
+        </Paper>
       )}
 
       {/* Location count */}
       {data && !isLoading && data.count > 0 && (
-        <div className="absolute bottom-24 left-4 bg-surface-900/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg border border-surface-700 z-10">
-          <span className="text-sm font-medium text-surface-200">
+        <Paper
+          pos="absolute"
+          bottom={96}
+          left={16}
+          px={12}
+          py={6}
+          radius="xl"
+          shadow="lg"
+          style={{
+            zIndex: 10,
+            backgroundColor: 'rgba(23, 23, 23, 0.95)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid var(--mantine-color-surface-7)',
+            pointerEvents: 'none',
+          }}
+        >
+          <Text size="sm" fw={500} c="gray.2">
             {data.count.toLocaleString()} locations
-          </span>
-        </div>
+          </Text>
+        </Paper>
       )}
 
       {/* Empty state */}
@@ -532,17 +603,45 @@ export function ForagingMap() {
 
       {/* Error state */}
       {error && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-red-950/95 backdrop-blur-sm border border-red-800 px-4 py-3 rounded-xl shadow-lg z-10">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-red-200">Failed to load locations</span>
-            <button
+        <Paper
+          pos="absolute"
+          bottom={96}
+          left="50%"
+          px={16}
+          py={12}
+          radius="lg"
+          shadow="lg"
+          style={{
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+            backgroundColor: 'rgba(69, 10, 10, 0.95)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid var(--mantine-color-red-8)',
+            pointerEvents: 'auto',
+          }}
+        >
+          <Group gap={12}>
+            <Text size="sm" c="red.2">Failed to load locations</Text>
+            <Button
+              variant="transparent"
+              size="compact-sm"
+              c="red.4"
               onClick={() => refetch()}
-              className="text-sm font-medium text-red-400 hover:text-red-300 underline underline-offset-2"
+              styles={{
+                root: {
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 2,
+                  '&:hover': {
+                    color: 'var(--mantine-color-red-3)',
+                  },
+                },
+              }}
             >
               Retry
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Group>
+        </Paper>
       )}
 
       {/* Location detail sheet */}
@@ -550,6 +649,6 @@ export function ForagingMap() {
         locationId={selectedLocationId}
         onClose={() => setSelectedLocationId(null)}
       />
-    </div>
+    </Box>
   );
 }

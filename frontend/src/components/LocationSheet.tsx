@@ -1,10 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
+import { Box, Paper, Text, Loader, Center, Button, Group, Stack, SimpleGrid, Badge, UnstyledButton } from '@mantine/core';
 import { X, Navigation, Calendar, Lock, Leaf, ExternalLink, Share2, Check, Copy } from 'lucide-react';
 import { getLocation } from '../lib/api';
 import { getFallbackSeason, formatFallbackSeason } from '../lib/fruitSeasons';
-import { surface, primary, accent, semantic } from '../lib/colors';
 import type { LocationDetail } from '../types/location';
 
 interface LocationSheetProps {
@@ -88,91 +88,95 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
   // Use React Portal to render outside the Map container hierarchy
   return createPortal(
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 transition-opacity duration-300 pointer-events-none"
-        style={{ 
-          zIndex: 9998,
-          opacity: isOpen ? 1 : 0 
-        }}
-      />
+      {/* Backdrop - only render when open */}
+      {isOpen && (
+        <Box
+          pos="fixed"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            transition: 'opacity 300ms',
+            opacity: 1,
+            pointerEvents: 'none',
+            zIndex: 9998,
+          }}
+        />
+      )}
 
       {/* Sheet */}
-      <div
+      <Paper
         ref={sheetRef}
         data-testid="location-sheet"
         data-open={isOpen}
-        className="rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out"
-        style={{ 
+        shadow="xl"
+        style={{
           position: 'fixed',
           bottom: 0,
           left: 0,
           right: 0,
           maxHeight: '70vh',
-          minHeight: '200px',
+          minHeight: 200,
           zIndex: 9999,
           transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
-          backgroundColor: surface[900],
-          borderTop: `1px solid ${surface[700]}`,
-          borderTopLeftRadius: '24px',
-          borderTopRightRadius: '24px',
+          transition: 'transform 300ms ease-out, visibility 0s linear ' + (isOpen ? '0s' : '300ms'),
+          backgroundColor: 'var(--mantine-color-surface-9)',
+          borderTop: '1px solid var(--mantine-color-surface-7)',
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          pointerEvents: isOpen ? 'auto' : 'none',
+          visibility: isOpen ? 'visible' : 'hidden',
         }}
       >
         {/* Handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '12px', paddingBottom: '8px' }}>
-          <div style={{ width: '40px', height: '4px', backgroundColor: surface[600], borderRadius: '9999px' }} />
-        </div>
+        <Center pt={12} pb={8}>
+          <Box
+            w={40}
+            h={4}
+            style={{
+              backgroundColor: 'var(--mantine-color-surface-6)',
+              borderRadius: 9999,
+            }}
+          />
+        </Center>
 
         {/* Close button */}
-        <button
+        <UnstyledButton
           onClick={onClose}
           data-testid="location-sheet-close-button"
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            padding: '8px',
-            borderRadius: '9999px',
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer'
-          }}
+          pos="absolute"
+          top={16}
+          right={16}
+          p={8}
+          style={{ borderRadius: 9999 }}
           aria-label="Close"
         >
-          <X style={{ width: '20px', height: '20px', color: surface[400] }} />
-        </button>
+          <X size={20} style={{ color: 'var(--mantine-color-gray-4)' }} />
+        </UnstyledButton>
 
         {/* Content */}
-        <div style={{ padding: '8px 24px 32px 24px', overflowY: 'auto', maxHeight: 'calc(70vh - 60px)' }}>
+        <Box p="8px 24px 32px 24px" style={{ overflowY: 'auto', maxHeight: 'calc(70vh - 60px)' }}>
           {isLoading && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 0' }}>
-              <div style={{ 
-                width: '32px', 
-                height: '32px', 
-                border: `3px solid ${primary[500]}`,
-                borderTopColor: 'transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            </div>
+            <Center py={48}>
+              <Loader color="primary.5" size="lg" />
+            </Center>
           )}
 
           {error && (
-            <div style={{ textAlign: 'center', padding: '48px 0' }}>
-              <p style={{ color: semantic.error, margin: 0 }}>Failed to load location details</p>
-            </div>
+            <Center py={48}>
+              <Text c="red.4">Failed to load location details</Text>
+            </Center>
           )}
 
           {location && <LocationContent location={location} />}
-        </div>
-      </div>
+        </Box>
+      </Paper>
     </>,
     document.body
   );
 }
-
-// Colors imported from centralized color system - see src/lib/colors.ts
 
 function LocationContent({ location }: { location: LocationDetail }) {
   const primaryType = location.types[0];
@@ -206,178 +210,198 @@ function LocationContent({ location }: { location: LocationDetail }) {
   }, [location, primaryType]);
   
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Stack gap={20}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-        <div style={{ 
-          flexShrink: 0, 
-          width: '48px', 
-          height: '48px', 
-          backgroundColor: `${primary[900]}80`,
-          borderRadius: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <Leaf style={{ width: '24px', height: '24px', color: primary[400] }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{ 
-            fontSize: '20px', 
-            fontWeight: 600, 
-            color: surface[50],
-            margin: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}>
-            {primaryType?.en_name || 'Unknown Type'}
-          </h2>
-          {primaryType?.scientific_name && (
-            <p style={{ 
-              fontSize: '14px', 
-              color: surface[500], 
-              fontStyle: 'italic',
-              margin: '4px 0 0 0',
+      <Group align="flex-start" gap={12}>
+        <Box
+          style={{
+            flexShrink: 0,
+            width: 48,
+            height: 48,
+            backgroundColor: 'rgba(20, 83, 45, 0.5)',
+            borderRadius: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Leaf size={24} style={{ color: 'var(--mantine-color-primary-4)' }} />
+        </Box>
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            size="lg"
+            fw={600}
+            c="gray.0"
+            style={{
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}>
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {primaryType?.en_name || 'Unknown Type'}
+          </Text>
+          {primaryType?.scientific_name && (
+            <Text
+              size="sm"
+              c="gray.5"
+              fs="italic"
+              mt={4}
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {primaryType.scientific_name}
-            </p>
+            </Text>
           )}
-        </div>
-        <button
+        </Box>
+        <UnstyledButton
           onClick={handleShare}
-          style={{ 
-            flexShrink: 0, 
-            padding: '8px', 
-            borderRadius: '8px',
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer'
-          }}
+          p={8}
+          style={{ flexShrink: 0, borderRadius: 8 }}
           aria-label="Share location"
         >
-          {shareStatus === 'idle' && <Share2 style={{ width: '20px', height: '20px', color: surface[400] }} />}
-          {shareStatus === 'copied' && <Copy style={{ width: '20px', height: '20px', color: primary[400] }} />}
-          {shareStatus === 'shared' && <Check style={{ width: '20px', height: '20px', color: primary[400] }} />}
-        </button>
-      </div>
+          {shareStatus === 'idle' && <Share2 size={20} style={{ color: 'var(--mantine-color-gray-4)' }} />}
+          {shareStatus === 'copied' && <Copy size={20} style={{ color: 'var(--mantine-color-primary-4)' }} />}
+          {shareStatus === 'shared' && <Check size={20} style={{ color: 'var(--mantine-color-primary-4)' }} />}
+        </UnstyledButton>
+      </Group>
 
       {/* Description */}
       {location.description && (
-        <p style={{ color: surface[300], lineHeight: 1.6, margin: 0 }}>
+        <Text c="gray.3" lh={1.6}>
           {location.description}
-        </p>
+        </Text>
       )}
 
       {/* Info grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+      <SimpleGrid cols={2} spacing={12}>
         {/* Season */}
         {(() => {
           const seasonInfo = formatSeason(location.season_start, location.season_stop, location.no_season, location.type_ids);
           return (
-            <div style={{ backgroundColor: surface[800], borderRadius: '12px', padding: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <Calendar style={{ width: '16px', height: '16px', color: primary[400] }} />
-                <span style={{ fontSize: '12px', fontWeight: 500, color: surface[500], textTransform: 'uppercase', letterSpacing: '0.05em' }}>Season</span>
-              </div>
-              <p style={{ fontSize: '14px', fontWeight: 500, color: surface[200], margin: 0 }}>
+            <Box
+              p={16}
+              style={{
+                backgroundColor: 'var(--mantine-color-surface-8)',
+                borderRadius: 12,
+              }}
+            >
+              <Group gap={8} mb={4}>
+                <Calendar size={16} style={{ color: 'var(--mantine-color-primary-4)' }} />
+                <Text size="xs" fw={500} c="gray.5" tt="uppercase" style={{ letterSpacing: '0.05em' }}>
+                  Season
+                </Text>
+              </Group>
+              <Text size="sm" fw={500} c="gray.2">
                 {seasonInfo.text}
-              </p>
+              </Text>
               {seasonInfo.isFallback && (
-                <p style={{ fontSize: '11px', color: surface[500], margin: '4px 0 0 0', fontStyle: 'italic' }}>
+                <Text size="xs" c="gray.5" fs="italic" mt={4}>
                   (typical for this plant)
-                </p>
+                </Text>
               )}
-            </div>
+            </Box>
           );
         })()}
 
         {/* Access */}
-        <div style={{ backgroundColor: surface[800], borderRadius: '12px', padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <Lock style={{ width: '16px', height: '16px', color: location.access?.toLowerCase().includes('private') ? accent[400] : surface[500] }} />
-            <span style={{ fontSize: '12px', fontWeight: 500, color: surface[500], textTransform: 'uppercase', letterSpacing: '0.05em' }}>Access</span>
-          </div>
-          <p style={{ fontSize: '14px', fontWeight: 500, color: surface[200], margin: 0 }}>
+        <Box
+          p={16}
+          style={{
+            backgroundColor: 'var(--mantine-color-surface-8)',
+            borderRadius: 12,
+          }}
+        >
+          <Group gap={8} mb={4}>
+            <Lock
+              size={16}
+              style={{
+                color: location.access?.toLowerCase().includes('private')
+                  ? 'var(--mantine-color-accent-4)'
+                  : 'var(--mantine-color-gray-5)',
+              }}
+            />
+            <Text size="xs" fw={500} c="gray.5" tt="uppercase" style={{ letterSpacing: '0.05em' }}>
+              Access
+            </Text>
+          </Group>
+          <Text size="sm" fw={500} c="gray.2">
             {location.access || 'Unknown'}
-          </p>
-        </div>
-      </div>
+          </Text>
+        </Box>
+      </SimpleGrid>
 
       {/* Additional types */}
       {location.types.length > 1 && (
-        <div>
-          <p style={{ fontSize: '12px', fontWeight: 500, color: surface[500], textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Also contains</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <Box>
+          <Text size="xs" fw={500} c="gray.5" tt="uppercase" style={{ letterSpacing: '0.05em' }} mb={8}>
+            Also contains
+          </Text>
+          <Group gap={8}>
             {location.types.slice(1).map((type) => (
-              <span
+              <Badge
                 key={type.id}
-                style={{
-                  padding: '4px 12px',
-                  backgroundColor: `${primary[900]}80`,
-                  color: primary[400],
-                  borderRadius: '9999px',
-                  fontSize: '14px',
-                  border: `1px solid ${primary[800]}`
+                variant="outline"
+                color="primary"
+                radius="xl"
+                size="md"
+                styles={{
+                  root: {
+                    backgroundColor: 'rgba(20, 83, 45, 0.5)',
+                    borderColor: 'var(--mantine-color-primary-8)',
+                    color: 'var(--mantine-color-primary-4)',
+                  },
                 }}
               >
                 {type.en_name}
-              </span>
+              </Badge>
             ))}
-          </div>
-        </div>
+          </Group>
+        </Box>
       )}
 
       {/* Verification status */}
       {location.unverified && (
-        <div style={{ 
-          backgroundColor: `${accent[900]}4d`, 
-          border: `1px solid ${accent[700]}`,
-          borderRadius: '12px',
-          padding: '12px'
-        }}>
-          <p style={{ fontSize: '14px', color: accent[300], margin: 0 }}>
+        <Box
+          p={12}
+          style={{
+            backgroundColor: 'rgba(124, 45, 18, 0.3)',
+            border: '1px solid var(--mantine-color-accent-7)',
+            borderRadius: 12,
+          }}
+        >
+          <Text size="sm" c="accent.3">
             ⚠️ This location has not been verified
-          </p>
-        </div>
+          </Text>
+        </Box>
       )}
 
       {/* Actions */}
-      <div style={{ paddingTop: '8px' }}>
-        <a
+      <Box pt={8}>
+        <Button
+          component="a"
           href={getDirectionsUrl(location.lat, location.lng)}
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            width: '100%',
-            padding: '14px',
-            backgroundColor: primary[600],
-            color: 'white',
-            fontWeight: 500,
-            borderRadius: '12px',
-            textDecoration: 'none',
-            boxSizing: 'border-box'
-          }}
+          fullWidth
+          size="lg"
+          radius="lg"
+          color="primary.6"
+          leftSection={<Navigation size={20} />}
+          rightSection={<ExternalLink size={16} style={{ opacity: 0.7 }} />}
         >
-          <Navigation style={{ width: '20px', height: '20px' }} />
           Get Directions
-          <ExternalLink style={{ width: '16px', height: '16px', opacity: 0.7 }} />
-        </a>
-      </div>
+        </Button>
+      </Box>
 
       {/* Meta info */}
       {location.author && (
-        <p style={{ fontSize: '12px', color: surface[600], textAlign: 'center', margin: 0 }}>
+        <Text size="xs" c="gray.6" ta="center">
           Added by {location.author}
-        </p>
+        </Text>
       )}
-    </div>
+    </Stack>
   );
 }
