@@ -166,11 +166,11 @@ Overall Product Vision        ████████░░░░░░░░�
 
 #### Details
 
-**TD-1: Inline Styles**
+**TD-1: Component Styling**
 - **Location:** `SearchBar.tsx`, `FilterPanel.tsx`, `LocationSheet.tsx`
-- **Issue:** Converted to inline styles to fix z-index issues; now harder to maintain
-- **Recommendation:** Investigate CSS-in-JS solution or fix Tailwind class application
-- **Effort:** 1 week
+- **Issue:** Previously had z-index issues; now resolved with Mantine components
+- **Status:** ✅ Resolved - migrated to Mantine UI library
+- **Effort:** N/A (completed)
 
 **TD-2: Missing Unit Tests**
 - **Current:** Only E2E tests (Playwright)

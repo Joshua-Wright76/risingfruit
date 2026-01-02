@@ -13,7 +13,7 @@ Rising Fruit is a Progressive Web App that provides a modern, mobile-first inter
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Rising Fruit PWA (Complete)                  │
-│  React + Vite + TypeScript + Tailwind + Mapbox GL + react-map-gl│
+│  React + Vite + TypeScript + Mantine + Mapbox GL + react-map-gl │
 │  Dark mode • Custom fruit icons • PWA with offline caching      │
 └─────────────────────────────┬────────────────────────────────────┘
                               │ HTTP/JSON
@@ -257,7 +257,7 @@ http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000/docs
 | Framework | React 18 |
 | Build Tool | Vite |
 | Language | TypeScript |
-| Styling | Tailwind CSS |
+| UI Library | Mantine |
 | Maps | Mapbox GL JS + react-map-gl |
 | State Management | TanStack Query |
 | PWA | vite-plugin-pwa |
@@ -300,7 +300,7 @@ risingfruit/
 │   │   │   └── location.ts         # TypeScript interfaces
 │   │   ├── App.tsx                 # Root component
 │   │   ├── main.tsx                # Entry point
-│   │   └── index.css               # Tailwind + custom theme
+│   │   └── index.css               # Global styles
 │   ├── e2e/                        # Playwright E2E tests
 │   │   ├── fixtures/test-fixtures.ts
 │   │   ├── map.spec.ts
@@ -313,7 +313,6 @@ risingfruit/
 │   │   └── manifest.json           # PWA manifest
 │   ├── playwright.config.ts
 │   ├── vite.config.ts
-│   ├── tailwind.config.js
 │   ├── tsconfig.json
 │   └── package.json
 ├── docs/
@@ -357,15 +356,12 @@ risingfruit/
 
 ### Dark Mode
 - Dark theme by default (`mapbox://styles/mapbox/dark-v11`)
-- Custom dark color palette in Tailwind
+- Custom dark color palette defined in frontend/src/lib/colors.ts
 
 ## Technical Decisions
 
 ### LocationSheet Styling
-The LocationSheet uses React Portal + inline styles instead of Tailwind classes. This was required because:
-1. The sheet needs to render above the Mapbox canvas (z-index issues)
-2. Tailwind classes weren't being applied to Portal content
-3. Inline styles ensure consistent rendering regardless of CSS context
+The LocationSheet uses React Portal with Mantine components. The sheet needs to render above the Mapbox canvas to avoid z-index issues.
 
 ### Marker Click Detection
 Click detection uses a 40x40px bounding box around the click point:
