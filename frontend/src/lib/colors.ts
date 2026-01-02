@@ -1,8 +1,8 @@
 /**
  * Rising Fruit Color System
- * 
+ *
  * All UI colors consolidated in one place for easy customization.
- * These values are also defined in index.css as CSS custom properties for Tailwind.
+ * These values are used by the Mantine theme configuration in theme.ts.
  */
 
 export const colors = {

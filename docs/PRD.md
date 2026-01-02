@@ -267,7 +267,7 @@ interface PlantType {
 | React | UI framework | 18.x |
 | Mapbox GL JS | Map rendering | 3.x |
 | TanStack Query | Data fetching | 5.x |
-| Tailwind CSS | Styling | 3.x |
+| Mantine | UI components | 8.x |
 | Playwright | E2E testing | 1.x |
 
 ---
