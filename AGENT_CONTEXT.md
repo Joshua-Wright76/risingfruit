@@ -40,8 +40,10 @@ Rising Fruit is a Progressive Web App that provides a modern, mobile-first inter
 ### Base URL
 
 ```
-http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000
+https://16.144.65.155.sslip.io
 ```
+
+> **Note:** Production domain is risingfruit.com (SSL certificate pending setup)
 
 ### Endpoints
 
@@ -86,7 +88,7 @@ GET /api/locations?sw_lat={lat}&sw_lng={lng}&ne_lat={lat}&ne_lng={lng}&limit={n}
 
 **Example:**
 ```bash
-curl "http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000/api/locations?sw_lat=37.7&sw_lng=-122.5&ne_lat=37.8&ne_lng=-122.4&limit=100"
+curl "https://16.144.65.155.sslip.io/api/locations?sw_lat=37.7&sw_lng=-122.5&ne_lat=37.8&ne_lng=-122.4&limit=100"
 ```
 
 **Response:**
@@ -206,7 +208,7 @@ GET /api/types/{id}
 
 Interactive API docs available at:
 ```
-http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000/docs
+https://16.144.65.155.sslip.io/docs
 ```
 
 ## Database Schema
@@ -285,7 +287,19 @@ risingfruit/
 │   └── docker-compose.yml
 ├── frontend/
 │   ├── src/
+│   │   ├── pages/
+│   │   │   ├── LandingPage.tsx     # Marketing landing page (route: /)
+│   │   │   └── AppPage.tsx         # Main map application (route: /app)
 │   │   ├── components/
+│   │   │   ├── landing/            # Landing page sections
+│   │   │   │   ├── Navbar.tsx      # Navigation bar
+│   │   │   │   ├── Hero.tsx        # Hero section with CTA
+│   │   │   │   ├── Features.tsx    # Feature highlights
+│   │   │   │   ├── LiveStats.tsx   # Live database statistics
+│   │   │   │   ├── Screenshots.tsx # App screenshots
+│   │   │   │   ├── Founder.tsx     # Founder info section
+│   │   │   │   ├── Contact.tsx     # Contact form
+│   │   │   │   └── Footer.tsx      # Footer
 │   │   │   ├── Map.tsx             # Main map with markers & clustering
 │   │   │   ├── LocationSheet.tsx   # Detail bottom sheet (React Portal)
 │   │   │   ├── SearchBar.tsx       # Type search with autocomplete
@@ -298,6 +312,7 @@ risingfruit/
 │   │   │   └── api.ts              # API client functions
 │   │   ├── types/
 │   │   │   └── location.ts         # TypeScript interfaces
+│   │   ├── router.tsx              # React Router config
 │   │   ├── App.tsx                 # Root component
 │   │   ├── main.tsx                # Entry point
 │   │   └── index.css               # Tailwind + custom theme
@@ -326,7 +341,18 @@ risingfruit/
 
 ## Frontend Features (Implemented)
 
-### Map View
+### Landing Page (route: `/`)
+- Modern marketing landing page with dark theme
+- **Navbar** - Navigation with smooth scroll links and "Open App" CTA
+- **Hero** - Headline, description, and call-to-action buttons
+- **Features** - Key feature highlights with icons
+- **LiveStats** - Real-time database statistics (locations, types, verified %)
+- **Screenshots** - App screenshot gallery
+- **Founder** - Founder information section
+- **Contact** - Contact form for user inquiries
+- **Footer** - Links and copyright
+
+### Map View (route: `/app`)
 - Full-screen Mapbox GL map with dark theme
 - Location markers with Supercluster clustering
 - Custom fruit icons for 31 plant types (banana, apple, orange, etc.)
@@ -392,8 +418,8 @@ This is more reliable than passing `layers` option directly to `queryRenderedFea
 ```bash
 # frontend/.env.local
 
-# Backend API (defaults to EC2 if not set)
-VITE_API_BASE_URL=http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000
+# Backend API (defaults to same-origin in production)
+VITE_API_BASE_URL=https://16.144.65.155.sslip.io
 
 # Mapbox (required - get from mapbox.com)
 VITE_MAPBOX_TOKEN=pk.your_token_here
@@ -493,4 +519,4 @@ const response = await fetch(
 - [Vite PWA Plugin](https://vite-pwa-org.netlify.app/)
 - [Playwright](https://playwright.dev/)
 - [Falling Fruit](https://fallingfruit.org/)
-- [API Swagger Docs](http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000/docs)
+- [API Swagger Docs](https://16.144.65.155.sslip.io/docs)

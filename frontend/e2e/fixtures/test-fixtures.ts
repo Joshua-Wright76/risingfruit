@@ -33,25 +33,31 @@ export class MapPage {
   }
 
   async goto() {
-    await this.page.goto('/');
+    await this.page.goto('/app');
   }
 
   async waitForMapLoad() {
     // Wait for the map canvas to be visible
     await this.mapCanvas.waitFor({ state: 'visible', timeout: 30000 });
-    // Wait for map to be interactive (loaded)
+    // Wait for map to be interactive (loaded) - canvas has dimensions
     await this.page.waitForFunction(() => {
       const canvas = document.querySelector('.mapboxgl-canvas');
       return canvas && canvas.clientHeight > 0 && canvas.clientWidth > 0;
-    }, { timeout: 30000 });
+    }, undefined, { timeout: 30000 });
+    // Wait for the loading skeleton to disappear (indicates React state mapLoaded=true)
+    await this.page.waitForFunction(() => {
+      return !document.body.innerText.includes('INITIALIZING MAP...');
+    }, undefined, { timeout: 45000 });
   }
 
   async waitForLocationsLoaded() {
-    // Wait for location count or markers to appear
+    // Wait for location count to appear (handles comma-formatted numbers like "1,234 locations")
     await this.page.waitForFunction(() => {
-      const countEl = document.body.innerText.match(/\d+ locations/);
+      const text = document.body.innerText;
+      // Match numbers with optional commas followed by " locations"
+      const countEl = text.match(/[\d,]+ locations/);
       return countEl !== null;
-    }, { timeout: 30000 });
+    }, undefined, { timeout: 45000 });
   }
 
   async clickOnMap(x: number, y: number) {
@@ -93,6 +99,8 @@ export const test = base.extend<{ mapPage: MapPage }>({
     const mapPage = new MapPage(page);
     await mapPage.goto();
     await mapPage.waitForMapLoad();
+    // Wait for locations to load before any test runs
+    await mapPage.waitForLocationsLoaded();
     await use(mapPage);
   },
 });

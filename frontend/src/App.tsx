@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
+import { RouterProvider } from 'react-router';
 import '@mantine/core/styles.css';
-import { ForagingMap } from './components/Map';
+import { router } from './router';
 import { theme } from './theme';
 
 const queryClient = new QueryClient({
@@ -17,9 +18,7 @@ function App() {
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
       <QueryClientProvider client={queryClient}>
-        <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
-          <ForagingMap />
-        </div>
+        <RouterProvider router={router} />
       </QueryClientProvider>
     </MantineProvider>
   );

@@ -140,9 +140,9 @@ jobs:
             # Stop and remove existing containers
             sudo docker compose down --remove-orphans || true
             
-            # Check if SSL certificates exist
-            if [ ! -f ~/risingfruit/backend/certbot/conf/live/16.144.65.155.sslip.io/fullchain.pem ]; then
-              echo "SSL certificates not found, obtaining initial certificates..."
+            # Check if SSL certificates exist for risingfruit.com
+            if [ ! -f ~/risingfruit/backend/certbot/conf/live/risingfruit.com/fullchain.pem ]; then
+              echo "SSL certificates for risingfruit.com not found, obtaining initial certificates..."
               mkdir -p ~/risingfruit/backend/certbot/conf ~/risingfruit/backend/certbot/www
               
               # Run temporary nginx to handle acme challenge
@@ -151,13 +151,24 @@ jobs:
               
               sleep 5
               
-              # Request certificate
+              # Request certificate for risingfruit.com
               sudo docker run --rm --name certbot \
                 -v ~/risingfruit/backend/certbot/conf:/etc/letsencrypt \
                 -v ~/risingfruit/backend/certbot/www:/var/www/certbot \
                 certbot/certbot certonly --webroot -w /var/www/certbot \
-                -d 16.144.65.155.sslip.io --email joshua@risingfruit.app --agree-tos --no-eff-email \
+                -d risingfruit.com -d www.risingfruit.com \
+                --email joshua@risingfruit.com --agree-tos --no-eff-email \
                 --non-interactive
+              
+              # Also get certificate for sslip.io fallback if not present
+              if [ ! -f ~/risingfruit/backend/certbot/conf/live/16.144.65.155.sslip.io/fullchain.pem ]; then
+                sudo docker run --rm --name certbot \
+                  -v ~/risingfruit/backend/certbot/conf:/etc/letsencrypt \
+                  -v ~/risingfruit/backend/certbot/www:/var/www/certbot \
+                  certbot/certbot certonly --webroot -w /var/www/certbot \
+                  -d 16.144.65.155.sslip.io --email joshua@risingfruit.com --agree-tos --no-eff-email \
+                  --non-interactive || echo "sslip.io cert already exists or failed (non-critical)"
+              fi
               
               sudo docker stop temp-nginx || true
               sudo docker rm temp-nginx || true

@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('Marker Click Bug', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app');
     // Wait for map to load
     await page.waitForSelector('.mapboxgl-canvas', { state: 'visible', timeout: 30000 });
     await page.waitForTimeout(2000); // Wait for icons to load

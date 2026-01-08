@@ -9,9 +9,9 @@ import type {
 } from '../types/location';
 
 // Use same-origin API when VITE_API_BASE_URL is empty or not set in production
-// Fall back to EC2 URL for local development
+// Fall back to sslip.io for local development (risingfruit.com once SSL is configured)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 
-  (import.meta.env.PROD ? '' : 'http://ec2-16-144-65-155.us-west-2.compute.amazonaws.com:8000');
+  (import.meta.env.PROD ? '' : 'https://16.144.65.155.sslip.io');
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
