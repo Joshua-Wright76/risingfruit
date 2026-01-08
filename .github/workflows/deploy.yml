@@ -156,7 +156,7 @@ jobs:
                 -v ~/risingfruit/backend/certbot/conf:/etc/letsencrypt \
                 -v ~/risingfruit/backend/certbot/www:/var/www/certbot \
                 certbot/certbot certonly --webroot -w /var/www/certbot \
-                -d risingfruit.com -d www.risingfruit.com \
+                -d risingfruit.com \
                 --email joshua@risingfruit.com --agree-tos --no-eff-email \
                 --non-interactive
               
