@@ -160,16 +160,6 @@ jobs:
                 --email joshua@risingfruit.com --agree-tos --no-eff-email \
                 --non-interactive
               
-              # Also get certificate for sslip.io fallback if not present
-              if [ ! -f ~/risingfruit/backend/certbot/conf/live/16.144.65.155.sslip.io/fullchain.pem ]; then
-                sudo docker run --rm --name certbot \
-                  -v ~/risingfruit/backend/certbot/conf:/etc/letsencrypt \
-                  -v ~/risingfruit/backend/certbot/www:/var/www/certbot \
-                  certbot/certbot certonly --webroot -w /var/www/certbot \
-                  -d 16.144.65.155.sslip.io --email joshua@risingfruit.com --agree-tos --no-eff-email \
-                  --non-interactive || echo "sslip.io cert already exists or failed (non-critical)"
-              fi
-              
               sudo docker stop temp-nginx || true
               sudo docker rm temp-nginx || true
             fi
