@@ -69,7 +69,6 @@ risingfruit/
 ├── .gitignore
 ├── index.html                # HTML entry
 ├── package.json
-├── tailwind.config.js        # Tailwind configuration
 ├── tsconfig.json             # TypeScript config
 ├── vite.config.ts            # Vite + PWA config
 └── README.md
