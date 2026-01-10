@@ -363,33 +363,46 @@ export function ForagingMap() {
     
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        // Get fresh map reference inside callback to avoid stale closure
+        const currentMap = mapRef.current?.getMap();
+        if (!currentMap) return;
+
         const userLat = pos.coords.latitude;
         const userLng = pos.coords.longitude;
-        
+
         // Save current view
-        const center = map.getCenter();
+        const center = currentMap.getCenter();
         previousViewRef.current = {
           center: [center.lng, center.lat],
-          zoom: map.getZoom(),
+          zoom: currentMap.getZoom(),
         };
-        
-        setUserLocation({ lat: userLat, lng: userLng });
-        
-        map.flyTo({
+
+        // IMPORTANT: Defer React state updates until AFTER animation completes
+        // to prevent re-renders from canceling the mapbox animation
+
+        // Disable panning/dragging first
+        currentMap.dragPan.disable();
+        currentMap.dragRotate.disable();
+        currentMap.touchZoomRotate.disableRotation();
+
+        // Update state after animation completes
+        currentMap.once('moveend', () => {
+          setUserLocation({ lat: userLat, lng: userLng });
+          setIs3DMode(true);
+          startWatchingPosition();
+        });
+
+        // Start compass (doesn't cause re-render)
+        startCompass();
+
+        // Start the animation
+        currentMap.flyTo({
           center: [userLng, userLat],
           zoom: 17,
           pitch: 60,
           duration: 1000,
+          essential: true,
         });
-        
-        await startCompass();
-        startWatchingPosition();
-        
-        map.dragPan.disable();
-        map.dragRotate.disable();
-        map.touchZoomRotate.disableRotation();
-        
-        setIs3DMode(true);
       },
       async () => {
         // Check why it failed
@@ -425,31 +438,39 @@ export function ForagingMap() {
       // Get current position first
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
+          // Get fresh map reference inside callback to avoid stale closure
+          const currentMap = mapRef.current?.getMap();
+          if (!currentMap) return;
+
           const userLat = pos.coords.latitude;
           const userLng = pos.coords.longitude;
-          
-          setUserLocation({ lat: userLat, lng: userLng });
-          
-          // Fly to user location with 3D view
-          map.flyTo({
+
+          // IMPORTANT: Defer React state updates until AFTER animation completes
+          // to prevent re-renders from canceling the mapbox animation
+
+          // Disable panning/dragging first
+          currentMap.dragPan.disable();
+          currentMap.dragRotate.disable();
+          currentMap.touchZoomRotate.disableRotation();
+
+          // Update state after animation completes
+          currentMap.once('moveend', () => {
+            setUserLocation({ lat: userLat, lng: userLng });
+            setIs3DMode(true);
+            startWatchingPosition();
+          });
+
+          // Start compass (doesn't cause re-render)
+          startCompass();
+
+          // Start the animation
+          currentMap.flyTo({
             center: [userLng, userLat],
             zoom: 17,
             pitch: 60,
             duration: 1000,
+            essential: true,
           });
-          
-          // Start compass
-          await startCompass();
-          
-          // Start watching position for continuous updates
-          startWatchingPosition();
-          
-          // Disable panning/dragging
-          map.dragPan.disable();
-          map.dragRotate.disable();
-          map.touchZoomRotate.disableRotation();
-          
-          setIs3DMode(true);
         },
         (err) => {
           console.warn('Geolocation error:', err);
