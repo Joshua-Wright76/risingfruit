@@ -9,12 +9,18 @@ import { typeIdToIcon, getIconNameForTypes, type IconName } from '../lib/typeIdM
 const svgToDataUri = (svg: string): string =>
   `data:image/svg+xml,${encodeURIComponent(svg)}`;
 
+// Icon size constants for high-DPI rendering
+// We render at 2x resolution (80px) for crisp display on retina screens
+export const ICON_SIZE = 80; // Actual pixel size of generated icons
+export const ICON_DISPLAY_SIZE = 40; // CSS pixel size for display
+export const ICON_PIXEL_RATIO = ICON_SIZE / ICON_DISPLAY_SIZE; // 2x for retina
+
 // Wrap SVG content in a circle background with season-aware border
 const wrapInCircle = (svgContent: string, inSeason: boolean): string => {
   const bgColor = fruitIcon.backgroundDark; // Dark mode background
   const strokeColor = inSeason ? fruitIcon.borderInSeason : fruitIcon.borderDefault;
   const strokeWidth = inSeason ? fruitIcon.borderWidthInSeason : fruitIcon.borderWidthDefault;
-  return `<svg width="40" height="40" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  return `<svg width="${ICON_SIZE}" height="${ICON_SIZE}" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
   <circle cx="40" cy="40" r="35" fill="${bgColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>
   <g transform="translate(8, 8)">${svgContent}</g>
 </svg>`;
@@ -34,7 +40,7 @@ const emojiToSvg = (emoji: string, inSeason: boolean): string => {
   const bgColor = fruitIcon.backgroundDark; // Dark mode background
   const strokeColor = inSeason ? fruitIcon.borderInSeason : fruitIcon.borderDefault;
   const strokeWidth = inSeason ? fruitIcon.borderWidthInSeason : fruitIcon.borderWidthDefault;
-  return `<svg width="40" height="40" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  return `<svg width="${ICON_SIZE}" height="${ICON_SIZE}" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
   <circle cx="40" cy="40" r="35" fill="${bgColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>
   <text x="40" y="52" font-size="36" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif" text-anchor="middle">${emoji}</text>
 </svg>`;

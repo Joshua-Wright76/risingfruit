@@ -22,7 +22,7 @@ import { FilterPanel, type FilterState } from './FilterPanel';
 import { EmptyState } from './EmptyState';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { markerIcons } from './MarkerIcons';
-import { fruitIcons, fruitIconsInSeason, getIconForTypes, defaultIcon, defaultIconInSeason } from './FruitIcons';
+import { fruitIcons, fruitIconsInSeason, getIconForTypes, defaultIcon, defaultIconInSeason, ICON_SIZE, ICON_PIXEL_RATIO } from './FruitIcons';
 import { isIconInSeason, areTypeIdsInSeason } from '../lib/fruitSeasons';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -70,29 +70,34 @@ function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
   };
 }
 
+// Cluster icon pixel ratio for high-DPI rendering (same as fruit icons)
+const CLUSTER_PIXEL_RATIO = 2;
+
 // Generate SVG for cluster with percentage arc indicator
 // The arc shows what percentage of items in the cluster are in season
-const generateClusterSvg = (percentage: number, size: number): string => {
-  const strokeWidth = 4;
-  const radius = (size - strokeWidth) / 2;
-  const center = size / 2;
+// logicalSize is the display size, actual SVG is rendered at 2x for retina
+const generateClusterSvg = (percentage: number, logicalSize: number): string => {
+  const actualSize = logicalSize * CLUSTER_PIXEL_RATIO;
+  const strokeWidth = 4 * CLUSTER_PIXEL_RATIO;
+  const radius = (actualSize - strokeWidth) / 2;
+  const center = actualSize / 2;
   const circumference = 2 * Math.PI * radius;
   const arcLength = (percentage / 100) * circumference;
   const gapLength = circumference - arcLength;
-  
+
   // Rotate to start from top (-90 degrees)
   const rotation = -90;
-  
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+
+  return `<svg width="${actualSize}" height="${actualSize}" viewBox="0 0 ${actualSize} ${actualSize}" xmlns="http://www.w3.org/2000/svg">
     <!-- Background circle -->
-    <circle cx="${center}" cy="${center}" r="${radius}" fill="${surface[800]}" stroke="${surface[700]}" stroke-width="2"/>
+    <circle cx="${center}" cy="${center}" r="${radius}" fill="${surface[800]}" stroke="${surface[700]}" stroke-width="${2 * CLUSTER_PIXEL_RATIO}"/>
     <!-- Progress arc (green) -->
-    <circle 
-      cx="${center}" 
-      cy="${center}" 
-      r="${radius}" 
-      fill="none" 
-      stroke="${primary[500]}" 
+    <circle
+      cx="${center}"
+      cy="${center}"
+      r="${radius}"
+      fill="none"
+      stroke="${primary[500]}"
       stroke-width="${strokeWidth}"
       stroke-dasharray="${arcLength} ${gapLength}"
       stroke-linecap="round"
@@ -102,7 +107,7 @@ const generateClusterSvg = (percentage: number, size: number): string => {
 };
 
 // Pre-generate cluster icons at 5% increments for different sizes
-const CLUSTER_SIZES = [40, 60, 80]; // Small, medium, large clusters
+const CLUSTER_SIZES = [40, 60, 80]; // Small, medium, large clusters (logical sizes)
 const PERCENTAGE_STEPS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
 
 const clusterIcons: Record<string, string> = {};
@@ -728,10 +733,27 @@ export function ForagingMap() {
         return;
       }
 
-      const img = new Image(40, 40);
+      // Determine image size and pixel ratio based on icon type
+      // Cluster icons have format "cluster-{logicalSize}-{percentage}" and variable sizes
+      // All other icons use standard ICON_SIZE
+      let imageSize: number;
+      let pixelRatio: number;
+
+      if (name.startsWith('cluster-')) {
+        // Extract logical size from cluster icon name (e.g., "cluster-40-50" -> 40)
+        const logicalSize = parseInt(name.split('-')[1], 10);
+        imageSize = logicalSize * CLUSTER_PIXEL_RATIO;
+        pixelRatio = CLUSTER_PIXEL_RATIO;
+      } else {
+        imageSize = ICON_SIZE;
+        pixelRatio = ICON_PIXEL_RATIO;
+      }
+
+      const img = new Image(imageSize, imageSize);
       img.onload = () => {
         if (!map.hasImage(name)) {
-          map.addImage(name, img, { sdf: false });
+          // Specify pixelRatio so Mapbox displays at correct logical size
+          map.addImage(name, img, { sdf: false, pixelRatio });
         }
         loadedCount++;
         if (loadedCount === totalIcons) setIconsLoaded(true);
