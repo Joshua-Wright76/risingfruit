@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, {
-  GeolocateControl,
   Layer,
   NavigationControl,
   Source,
@@ -11,7 +10,8 @@ import Map, {
 } from 'react-map-gl/mapbox';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Box, Paper, Text, Group, Loader, Button, Stack, ActionIcon, Tooltip } from '@mantine/core';
-import { Leaf, Navigation2, MapPin } from 'lucide-react';
+import { Leaf, Navigation2, MapPin, Crosshair } from 'lucide-react';
+import { CompassRose } from './CompassRose';
 import { getLocations } from '../lib/api';
 import { marker, primary, surface } from '../lib/colors';
 import type { BoundingBox, Location, PlantType } from '../types/location';
@@ -227,6 +227,8 @@ export function ForagingMap() {
   const [is3DMode, setIs3DMode] = useState(false);
   const [compassHeading, setCompassHeading] = useState<number | null>(null);
   const compassListenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+  const smoothedHeadingRef = useRef<number | null>(null);
+  const SMOOTHING_FACTOR = 0.15; // Lower = smoother, higher = more responsive
   
   // 3D mode location tracking
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -234,16 +236,17 @@ export function ForagingMap() {
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const previousViewRef = useRef<{ center: [number, number]; zoom: number } | null>(null);
+  const userInteractionHandlerRef = useRef<(() => void) | null>(null);
 
-  // Handle compass orientation events
+  // Handle compass orientation events with smoothing
   const handleDeviceOrientation = useCallback((e: DeviceOrientationEvent) => {
     // iOS provides webkitCompassHeading directly
     // Android requires calculation from alpha (with beta/gamma for tilt compensation)
     let heading: number | null = null;
-    
+
     // Type assertion for iOS-specific property
     const event = e as DeviceOrientationEvent & { webkitCompassHeading?: number };
-    
+
     if (event.webkitCompassHeading !== undefined) {
       // iOS: webkitCompassHeading is degrees from north (0-360)
       heading = event.webkitCompassHeading;
@@ -252,11 +255,21 @@ export function ForagingMap() {
       // Convert to compass heading (0 = north, 90 = east, etc.)
       heading = (360 - e.alpha) % 360;
     }
-    
+
     if (heading !== null) {
-      setCompassHeading(heading);
+      // Apply exponential moving average smoothing to reduce jitter
+      if (smoothedHeadingRef.current === null) {
+        smoothedHeadingRef.current = heading;
+      } else {
+        // Handle wrap-around (359° → 1°)
+        let delta = heading - smoothedHeadingRef.current;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+        smoothedHeadingRef.current = (smoothedHeadingRef.current + delta * SMOOTHING_FACTOR + 360) % 360;
+      }
+      setCompassHeading(smoothedHeadingRef.current);
     }
-  }, []);
+  }, [SMOOTHING_FACTOR]);
 
   // Start listening to compass
   const startCompass = useCallback(async () => {
@@ -296,6 +309,7 @@ export function ForagingMap() {
       window.removeEventListener('deviceorientation', compassListenerRef.current);
       compassListenerRef.current = null;
     }
+    smoothedHeadingRef.current = null;
     setCompassHeading(null);
   }, []);
 
@@ -342,6 +356,62 @@ export function ForagingMap() {
     return 'unknown';
   }, []);
 
+  // Center map on user's current location (one-time, no tracking)
+  const handleCenterOnLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        mapRef.current?.getMap()?.flyTo({
+          center: [pos.coords.longitude, pos.coords.latitude],
+          zoom: 15,
+          duration: 1000,
+        });
+      },
+      (err) => {
+        console.warn('Geolocation error:', err);
+        setShowLocationPrompt(true);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, []);
+
+  // Remove user interaction listeners
+  const removeUserInteractionListeners = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (map && userInteractionHandlerRef.current) {
+      map.off('dragstart', userInteractionHandlerRef.current);
+      map.off('rotatestart', userInteractionHandlerRef.current);
+      userInteractionHandlerRef.current = null;
+    }
+  }, []);
+
+  // Exit compass mode when user interacts with the map (keeps current view)
+  const exitCompassMode = useCallback(() => {
+    stopCompass();
+    stopWatchingPosition();
+    setUserLocation(null);
+    removeUserInteractionListeners();
+    setIs3DMode(false);
+    // Don't reset pitch/bearing - keep current view
+  }, [stopCompass, stopWatchingPosition, removeUserInteractionListeners]);
+
+  // Setup user interaction listeners (exits compass mode on pan/drag)
+  const setupUserInteractionListeners = useCallback((map: mapboxgl.Map) => {
+    // Clean up any existing listeners first
+    removeUserInteractionListeners();
+
+    // Create the handler
+    const handler = () => {
+      exitCompassMode();
+    };
+    userInteractionHandlerRef.current = handler;
+
+    // Add listeners
+    map.on('dragstart', handler);
+    map.on('rotatestart', handler);
+  }, [exitCompassMode, removeUserInteractionListeners]);
+
   // Retry location permission (triggers iOS permission dialog)
   // IMPORTANT: No setTimeout - iOS requires user gesture chain to be intact
   const retryLocationPermission = useCallback(async () => {
@@ -350,7 +420,7 @@ export function ForagingMap() {
 
     // Check permission state first
     const permissionState = await checkLocationPermission();
-    
+
     if (permissionState === 'denied') {
       // Permission was denied - can't trigger dialog, show settings guidance
       setLocationPermissionDenied(true);
@@ -360,7 +430,7 @@ export function ForagingMap() {
     // Close prompt and immediately request location (preserves user gesture)
     setShowLocationPrompt(false);
     setLocationPermissionDenied(false);
-    
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         // Get fresh map reference inside callback to avoid stale closure
@@ -380,10 +450,8 @@ export function ForagingMap() {
         // IMPORTANT: Defer React state updates until AFTER animation completes
         // to prevent re-renders from canceling the mapbox animation
 
-        // Disable panning/dragging first
-        currentMap.dragPan.disable();
-        currentMap.dragRotate.disable();
-        currentMap.touchZoomRotate.disableRotation();
+        // Setup user interaction listeners (will exit compass mode on drag/pan)
+        setupUserInteractionListeners(currentMap);
 
         // Update state after animation completes
         currentMap.once('moveend', () => {
@@ -414,7 +482,7 @@ export function ForagingMap() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  }, [startCompass, startWatchingPosition, checkLocationPermission]);
+  }, [startCompass, startWatchingPosition, checkLocationPermission, setupUserInteractionListeners]);
 
   // Toggle 3D mode
   const toggle3DMode = useCallback(async () => {
@@ -428,7 +496,7 @@ export function ForagingMap() {
         return;
       }
 
-      // Save current view to restore later
+      // Save current view to restore later (when manually toggling off)
       const center = map.getCenter();
       previousViewRef.current = {
         center: [center.lng, center.lat],
@@ -448,10 +516,8 @@ export function ForagingMap() {
           // IMPORTANT: Defer React state updates until AFTER animation completes
           // to prevent re-renders from canceling the mapbox animation
 
-          // Disable panning/dragging first
-          currentMap.dragPan.disable();
-          currentMap.dragRotate.disable();
-          currentMap.touchZoomRotate.disableRotation();
+          // Setup user interaction listeners (will exit compass mode on drag/pan)
+          setupUserInteractionListeners(currentMap);
 
           // Update state after animation completes
           currentMap.once('moveend', () => {
@@ -483,16 +549,12 @@ export function ForagingMap() {
         }
       );
     } else {
-      // Disable 3D mode
+      // Disable 3D mode (manual toggle - restore previous view)
       stopCompass();
       stopWatchingPosition();
       setUserLocation(null);
-      
-      // Re-enable panning
-      map.dragPan.enable();
-      map.dragRotate.enable();
-      map.touchZoomRotate.enableRotation();
-      
+      removeUserInteractionListeners();
+
       // Reset to flat view, restore previous position if available
       if (previousViewRef.current) {
         map.flyTo({
@@ -510,10 +572,10 @@ export function ForagingMap() {
           duration: 500,
         });
       }
-      
+
       setIs3DMode(false);
     }
-  }, [is3DMode, startCompass, stopCompass, startWatchingPosition, stopWatchingPosition]);
+  }, [is3DMode, startCompass, stopCompass, startWatchingPosition, stopWatchingPosition, setupUserInteractionListeners, removeUserInteractionListeners]);
 
   // Update map bearing when compass heading changes
   useEffect(() => {
@@ -543,6 +605,9 @@ export function ForagingMap() {
 
   // Cleanup on unmount
   useEffect(() => {
+    // Capture ref values for cleanup
+    const mapInstance = mapRef.current?.getMap();
+
     return () => {
       // Clean up compass listener
       if (compassListenerRef.current) {
@@ -551,6 +616,11 @@ export function ForagingMap() {
       // Clean up position watch
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      // Clean up user interaction listeners
+      if (mapInstance && userInteractionHandlerRef.current) {
+        mapInstance.off('dragstart', userInteractionHandlerRef.current);
+        mapInstance.off('rotatestart', userInteractionHandlerRef.current);
       }
     };
   }, []);
@@ -821,12 +891,6 @@ export function ForagingMap() {
         reuseMaps
         style={{ width: '100%', height: '100%' }}
       >
-        <GeolocateControl
-          position="bottom-right"
-          positionOptions={{ enableHighAccuracy: true }}
-          trackUserLocation
-          showUserHeading
-        />
         <NavigationControl position="bottom-right" showCompass={false} />
 
         {geojson && (
@@ -852,9 +916,37 @@ export function ForagingMap() {
         )}
       </Map>
 
+      {/* Compass Rose Overlay (visible in 3D mode) */}
+      {is3DMode && compassHeading !== null && (
+        <CompassRose heading={compassHeading} />
+      )}
+
+      {/* Geolocation Button (center only, no tracking) */}
+      <Tooltip label="Center on my location" position="left" withArrow>
+        <ActionIcon
+          pos="absolute"
+          bottom={220}
+          right={10}
+          size={29}
+          variant="filled"
+          onClick={handleCenterOnLocation}
+          aria-label="Center on my location"
+          data-testid="geolocate-button"
+          style={{
+            zIndex: 1,
+            backgroundColor: '#fff',
+            color: '#333',
+            borderRadius: 4,
+            boxShadow: '0 0 0 2px rgba(0,0,0,0.1)',
+          }}
+        >
+          <Crosshair size={18} />
+        </ActionIcon>
+      </Tooltip>
+
       {/* 3D Compass Mode Toggle Button */}
-      <Tooltip 
-        label={is3DMode ? 'Exit 3D mode' : '3D compass mode'} 
+      <Tooltip
+        label={is3DMode ? 'Exit 3D mode' : '3D compass mode'}
         position="left"
         withArrow
       >
@@ -875,14 +967,14 @@ export function ForagingMap() {
             transition: 'background-color 0.2s, color 0.2s',
           }}
         >
-          <Navigation2 
-            size={18} 
-            style={{ 
-              transform: is3DMode && compassHeading !== null 
-                ? `rotate(${compassHeading}deg)` 
+          <Navigation2
+            size={18}
+            style={{
+              transform: is3DMode && compassHeading !== null
+                ? `rotate(${compassHeading}deg)`
                 : 'rotate(0deg)',
               transition: 'transform 0.1s ease-out',
-            }} 
+            }}
           />
         </ActionIcon>
       </Tooltip>

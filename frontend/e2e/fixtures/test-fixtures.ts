@@ -29,7 +29,7 @@ export class MapPage {
     this.locationCount = page.locator('text=/\\d+ locations/');
     this.zoomInButton = page.locator('.mapboxgl-ctrl-zoom-in');
     this.zoomOutButton = page.locator('.mapboxgl-ctrl-zoom-out');
-    this.geolocateButton = page.locator('.mapboxgl-ctrl-geolocate');
+    this.geolocateButton = page.locator('[data-testid="geolocate-button"]');
   }
 
   async goto() {
