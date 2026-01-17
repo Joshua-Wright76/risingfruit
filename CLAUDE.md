@@ -64,6 +64,7 @@ docker-compose logs -f  # View logs
 - `src/components/landing/` - Landing page sections (Navbar, Hero, Features, LiveStats, Screenshots, Founder, Contact, Footer)
 - `src/components/Map.tsx` - Main Mapbox map component with marker rendering
 - `src/components/LocationSheet.tsx` - Bottom sheet for location details (uses React Portal + inline styles for z-index)
+- `src/components/CompassRose.tsx` - 3D compass overlay for orientation mode
 - `src/components/FruitIcons.ts` - Emoji markers and custom SVG icons
 - `src/lib/api.ts` - Backend API client
 - `src/lib/typeIdMappings.ts` - Falling Fruit type ID to emoji/icon mapping
@@ -121,3 +122,7 @@ data-testid="location-sheet"
 data-testid="season-filter"
 placeholder="Search plants..."
 ```
+
+## Detailed Architecture
+
+For comprehensive architecture documentation including data flow diagrams, module relationships, and navigation guides, see [docs/CODEBASE_MAP.md](docs/CODEBASE_MAP.md).
