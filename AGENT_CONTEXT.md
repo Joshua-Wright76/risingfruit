@@ -301,6 +301,7 @@ risingfruit/
 │   │   │   │   ├── Contact.tsx     # Contact form
 │   │   │   │   └── Footer.tsx      # Footer
 │   │   │   ├── Map.tsx             # Main map with markers & clustering
+│   │   │   ├── CompassRose.tsx     # Compass rose overlay for 3D mode
 │   │   │   ├── LocationSheet.tsx   # Detail bottom sheet (React Portal)
 │   │   │   ├── SearchBar.tsx       # Type search with autocomplete
 │   │   │   ├── FilterPanel.tsx     # Category & season filters
@@ -356,8 +357,40 @@ risingfruit/
 - Location markers with Supercluster clustering
 - Custom fruit icons for 31 plant types (banana, apple, orange, etc.)
 - Generic leaf icon fallback for other types
-- Geolocation button (bottom-right)
 - Default location: Long Beach, CA
+
+### Compass Mode (3D Navigation)
+Two separate buttons on the right side of the map:
+
+**Geolocation Button** (Crosshair icon)
+- Centers map on user's current GPS location
+- One-time center, no tracking
+- Uses `data-testid="geolocate-button"` for E2E tests
+
+**Compass Mode Button** (Navigation2 icon)
+- Activates full 3D compass navigation mode
+- Centers on user location + tilts to 60° pitch + zooms to 17
+- Rotates map to match device compass heading (user faces "up")
+- Continuously tracks GPS position while active
+- Icon rotates to show current heading
+
+**Compass Rose Overlay** (`CompassRose.tsx`)
+- Large semi-transparent compass rose (Pokemon Go style)
+- Fixed on screen, rotates with heading
+- Shows N/S/E/W markers with highlighted North indicator
+- Visible only when compass mode is active
+
+**Exit Behavior**
+- Manual pan/drag exits compass mode automatically
+- Map stays at current position (no snap back)
+- Re-tapping compass button snaps back to GPS and re-enables tracking
+
+**Technical Details**
+- Uses `DeviceOrientationEvent` API for compass heading
+- iOS 13+ permission request handled (`DeviceOrientationEvent.requestPermission()`)
+- Exponential moving average smoothing on heading (SMOOTHING_FACTOR = 0.15)
+- Falls back to non-rotating mode if orientation permission denied
+- Event listeners cleaned up via refs on unmount
 
 ### Location Detail Sheet
 - Slide-up bottom sheet on marker tap
