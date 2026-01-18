@@ -12,8 +12,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only - reduced from 2 to 1 for faster builds */
   retries: process.env.CI ? 1 : 0,
-  /* Use 1 worker to avoid overwhelming the dev server and Mapbox */
-  workers: 1,
+  /* Use 4 workers for faster parallel execution */
+  workers: 4,
   /* Reporter to use */
   reporter: process.env.CI ? 'github' : 'html',
   /* Global timeout for each test - 60 seconds max */

@@ -66,20 +66,22 @@ export class MapPage {
 
   async zoomIn() {
     await this.zoomInButton.click();
-    // Wait for zoom animation
-    await this.page.waitForTimeout(500);
+    // Wait for zoom to complete by checking map is still interactive
+    await expect(this.zoomInButton).toBeEnabled();
   }
 
   async zoomOut() {
     await this.zoomOutButton.click();
-    // Wait for zoom animation
-    await this.page.waitForTimeout(500);
+    // Wait for zoom to complete by checking map is still interactive
+    await expect(this.zoomOutButton).toBeEnabled();
   }
 
   async search(query: string) {
     await this.searchInput.fill(query);
-    // Wait for autocomplete results
-    await this.page.waitForTimeout(500);
+    // Wait for autocomplete dropdown to appear
+    await expect(this.page.locator('[role="listbox"], [role="option"]').first()).toBeVisible({ timeout: 5000 }).catch(() => {
+      // Autocomplete may not always show results, that's okay
+    });
   }
 
   async clearSearch() {
@@ -88,12 +90,23 @@ export class MapPage {
 
   async getLocationCount(): Promise<number> {
     const text = await this.locationCount.textContent();
-    const match = text?.match(/(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
+    const match = text?.match(/([\d,]+)/);
+    return match ? parseInt(match[1].replace(/,/g, ''), 10) : 0;
+  }
+
+  async waitForMapIdle() {
+    // Wait for map to finish rendering/animating
+    await this.page.waitForFunction(() => {
+      // @ts-expect-error - accessing exposed map for testing
+      const map = window.__risingfruit_map;
+      return map && !map.isMoving() && !map.isZooming();
+    }, undefined, { timeout: 10000 }).catch(() => {
+      // Map may not expose these methods, continue anyway
+    });
   }
 }
 
-// Extend the base test with our fixtures
+// Full test fixture - waits for map AND locations (for tests that need data)
 export const test = base.extend<{ mapPage: MapPage }>({
   mapPage: async ({ page }, use) => {
     const mapPage = new MapPage(page);
@@ -101,6 +114,17 @@ export const test = base.extend<{ mapPage: MapPage }>({
     await mapPage.waitForMapLoad();
     // Wait for locations to load before any test runs
     await mapPage.waitForLocationsLoaded();
+    await use(mapPage);
+  },
+});
+
+// Fast test fixture - only waits for map load (for UI-only tests)
+export const fastTest = base.extend<{ mapPage: MapPage }>({
+  mapPage: async ({ page }, use) => {
+    const mapPage = new MapPage(page);
+    await mapPage.goto();
+    await mapPage.waitForMapLoad();
+    // Don't wait for locations - faster for UI-only tests
     await use(mapPage);
   },
 });
