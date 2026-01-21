@@ -1,13 +1,9 @@
-interface CompassRoseProps {
-  heading: number; // 0-360, compass heading
-}
-
 /**
  * Large semi-transparent compass rose overlay
  * Pokemon Go style aesthetic
- * Rotates based on compass heading (N indicator moves as user turns)
+ * Fixed north-up overlay (map rotates underneath)
  */
-export function CompassRose({ heading }: CompassRoseProps) {
+export function CompassRose() {
   return (
     <div
       style={{
@@ -37,8 +33,6 @@ export function CompassRose({ heading }: CompassRoseProps) {
           height="200"
           viewBox="0 0 200 200"
           style={{
-            transform: `rotate(${-heading}deg)`,
-            transition: 'transform 0.1s ease-out',
             filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))',
           }}
         >

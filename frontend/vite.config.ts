@@ -4,6 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    allowedHosts: [ "inquisitive-unextensible-minna.ngrok-free.dev" ]
+  },
   plugins: [
     react(),
     VitePWA({

@@ -27,6 +27,7 @@ import { isIconInSeason, areTypeIdsInSeason } from '../lib/fruitSeasons';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+type CompassPermissionState = 'unknown' | 'granted' | 'denied' | 'unsupported' | 'not_required';
 
 // Default to Long Beach, CA
 const INITIAL_VIEW = {
@@ -218,6 +219,11 @@ const unclusteredPointFallbackLayer: LayerProps = {
 };
 
 export function ForagingMap() {
+  const showCompassDebug = useMemo(() => {
+    if (import.meta.env.DEV) return true;
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).has('debugCompass');
+  }, []);
   const mapRef = useRef<MapRef>(null);
   const [bounds, setBounds] = useState<BoundingBox | null>(null);
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
@@ -232,8 +238,19 @@ export function ForagingMap() {
   const [is3DMode, setIs3DMode] = useState(false);
   const [compassHeading, setCompassHeading] = useState<number | null>(null);
   const compassListenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+  const compassAbsoluteListenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+  const motionListenerRef = useRef<((e: DeviceMotionEvent) => void) | null>(null);
   const smoothedHeadingRef = useRef<number | null>(null);
   const SMOOTHING_FACTOR = 0.15; // Lower = smoother, higher = more responsive
+  const [motionPermission, setMotionPermission] = useState<CompassPermissionState>('unknown');
+  const [orientationPermission, setOrientationPermission] = useState<CompassPermissionState>('unknown');
+  const [compassListenerActive, setCompassListenerActive] = useState(false);
+  const [lastOrientationEventAt, setLastOrientationEventAt] = useState<number | null>(null);
+  const [lastMotionEventAt, setLastMotionEventAt] = useState<number | null>(null);
+  const [lastRawHeading, setLastRawHeading] = useState<number | null>(null);
+  const [lastAlpha, setLastAlpha] = useState<number | null>(null);
+  const [lastAccel, setLastAccel] = useState<{ x: number | null; y: number | null; z: number | null } | null>(null);
+  const [mapBearing, setMapBearing] = useState<number | null>(null);
   
   // 3D mode location tracking
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -262,6 +279,9 @@ export function ForagingMap() {
     }
 
     if (heading !== null) {
+      setLastOrientationEventAt(Date.now());
+      setLastRawHeading(heading);
+      setLastAlpha(e.alpha ?? null);
       // Apply exponential moving average smoothing to reduce jitter
       if (smoothedHeadingRef.current === null) {
         smoothedHeadingRef.current = heading;
@@ -276,37 +296,77 @@ export function ForagingMap() {
     }
   }, [SMOOTHING_FACTOR]);
 
+  const handleDeviceMotion = useCallback((e: DeviceMotionEvent) => {
+    setLastMotionEventAt(Date.now());
+    setLastAccel({
+      x: e.accelerationIncludingGravity?.x ?? null,
+      y: e.accelerationIncludingGravity?.y ?? null,
+      z: e.accelerationIncludingGravity?.z ?? null,
+    });
+  }, []);
+
   // Start listening to compass
   const startCompass = useCallback(async () => {
     // Check if DeviceOrientationEvent is available
     if (!('DeviceOrientationEvent' in window)) {
       console.warn('Device orientation not supported');
+      setOrientationPermission('unsupported');
+      setMotionPermission('unsupported');
       return false;
     }
 
-    // iOS 13+ requires permission request
+    // iOS 13+ requires permission request (motion + orientation).
+    const DME = DeviceMotionEvent as typeof DeviceMotionEvent & {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    };
     const DOE = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
       requestPermission?: () => Promise<'granted' | 'denied'>;
     };
     
+    if (typeof DME.requestPermission === 'function') {
+      try {
+        const permission = await DME.requestPermission();
+        setMotionPermission(permission);
+        if (permission !== 'granted') {
+          console.warn('Device motion permission denied');
+          return false;
+        }
+      } catch (err) {
+        console.warn('Error requesting device motion permission:', err);
+        setMotionPermission('denied');
+        return false;
+      }
+    } else {
+      setMotionPermission('not_required');
+    }
+
     if (typeof DOE.requestPermission === 'function') {
       try {
         const permission = await DOE.requestPermission();
+        setOrientationPermission(permission);
         if (permission !== 'granted') {
           console.warn('Device orientation permission denied');
           return false;
         }
       } catch (err) {
         console.warn('Error requesting device orientation permission:', err);
+        setOrientationPermission('denied');
         return false;
       }
+    } else {
+      setOrientationPermission('not_required');
     }
 
     // Store the listener reference for cleanup
     compassListenerRef.current = handleDeviceOrientation;
+    compassAbsoluteListenerRef.current = handleDeviceOrientation;
+    motionListenerRef.current = handleDeviceMotion;
     window.addEventListener('deviceorientation', handleDeviceOrientation);
+    window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
+    window.addEventListener('devicemotion', handleDeviceMotion);
+    setCompassListenerActive(true);
     return true;
-  }, [handleDeviceOrientation]);
+  }, [handleDeviceOrientation, handleDeviceMotion]);
 
   // Stop listening to compass
   const stopCompass = useCallback(() => {
@@ -314,8 +374,17 @@ export function ForagingMap() {
       window.removeEventListener('deviceorientation', compassListenerRef.current);
       compassListenerRef.current = null;
     }
+    if (compassAbsoluteListenerRef.current) {
+      window.removeEventListener('deviceorientationabsolute', compassAbsoluteListenerRef.current);
+      compassAbsoluteListenerRef.current = null;
+    }
+    if (motionListenerRef.current) {
+      window.removeEventListener('devicemotion', motionListenerRef.current);
+      motionListenerRef.current = null;
+    }
     smoothedHeadingRef.current = null;
     setCompassHeading(null);
+    setCompassListenerActive(false);
   }, []);
 
   // Start watching user position
@@ -407,7 +476,9 @@ export function ForagingMap() {
     removeUserInteractionListeners();
 
     // Create the handler
-    const handler = () => {
+    const handler = (event?: { originalEvent?: Event }) => {
+      // Ignore programmatic movements (no originalEvent) so 3D mode isn't cancelled.
+      if (!event?.originalEvent) return;
       exitCompassMode();
     };
     userInteractionHandlerRef.current = handler;
@@ -422,6 +493,9 @@ export function ForagingMap() {
   const retryLocationPermission = useCallback(async () => {
     const map = mapRef.current?.getMap();
     if (!map) return;
+
+    // Request motion/orientation permission while user gesture is active (iOS requirement).
+    void startCompass();
 
     // Check permission state first
     const permissionState = await checkLocationPermission();
@@ -465,9 +539,6 @@ export function ForagingMap() {
           startWatchingPosition();
         });
 
-        // Start compass (doesn't cause re-render)
-        startCompass();
-
         // Start the animation
         currentMap.flyTo({
           center: [userLng, userLat],
@@ -495,6 +566,9 @@ export function ForagingMap() {
     if (!map) return;
 
     if (!is3DMode) {
+      // Request motion/orientation permission while user gesture is active (iOS requirement).
+      void startCompass();
+
       // Check if geolocation is available
       if (!navigator.geolocation) {
         setShowLocationPrompt(true);
@@ -530,9 +604,6 @@ export function ForagingMap() {
             setIs3DMode(true);
             startWatchingPosition();
           });
-
-          // Start compass (doesn't cause re-render)
-          startCompass();
 
           // Start the animation
           currentMap.flyTo({
@@ -582,6 +653,10 @@ export function ForagingMap() {
     }
   }, [is3DMode, startCompass, stopCompass, startWatchingPosition, stopWatchingPosition, setupUserInteractionListeners, removeUserInteractionListeners]);
 
+  const runSensorTest = useCallback(() => {
+    void startCompass();
+  }, [startCompass]);
+
   // Update map bearing when compass heading changes
   useEffect(() => {
     if (!is3DMode || compassHeading === null) return;
@@ -592,6 +667,7 @@ export function ForagingMap() {
     // Smoothly update bearing to match compass heading
     // Note: Mapbox bearing is degrees clockwise from north
     map.setBearing(compassHeading);
+    setMapBearing(map.getBearing());
   }, [is3DMode, compassHeading]);
 
   // Keep map centered on user location in 3D mode
@@ -938,9 +1014,53 @@ export function ForagingMap() {
         )}
       </Map>
 
+      {showCompassDebug && (
+        <Paper
+          pos="absolute"
+          top={12}
+          right={12}
+          px={12}
+          py={10}
+          radius="md"
+          style={{
+            zIndex: 1001,
+            backgroundColor: 'rgba(17, 17, 17, 0.85)',
+            border: '1px solid var(--mantine-color-surface-7)',
+            maxWidth: 260,
+          }}
+        >
+          <Stack gap={4}>
+            <Text size="xs" fw={600} c="gray.2">Compass debug</Text>
+            <Text size="xs" c="gray.4">3D mode: {String(is3DMode)}</Text>
+            <Text size="xs" c="gray.4">Listener: {String(compassListenerActive)}</Text>
+            <Text size="xs" c="gray.4">Motion perm: {motionPermission}</Text>
+            <Text size="xs" c="gray.4">Orientation perm: {orientationPermission}</Text>
+            <Text size="xs" c="gray.4">Heading: {compassHeading === null ? 'null' : compassHeading.toFixed(1)}</Text>
+            <Text size="xs" c="gray.4">Raw heading: {lastRawHeading === null ? 'null' : lastRawHeading.toFixed(1)}</Text>
+            <Text size="xs" c="gray.4">Alpha: {lastAlpha === null ? 'null' : lastAlpha.toFixed(1)}</Text>
+            <Text size="xs" c="gray.4">Map bearing: {mapBearing === null ? 'null' : mapBearing.toFixed(1)}</Text>
+            <Text size="xs" c="gray.4">
+              Last event: {lastOrientationEventAt === null ? 'never' : `${((Date.now() - lastOrientationEventAt) / 1000).toFixed(1)}s ago`}
+            </Text>
+            <Text size="xs" c="gray.4">
+              Motion event: {lastMotionEventAt === null ? 'never' : `${((Date.now() - lastMotionEventAt) / 1000).toFixed(1)}s ago`}
+            </Text>
+            <Text size="xs" c="gray.4">
+              Accel: {lastAccel ? `${lastAccel.x ?? 'null'}, ${lastAccel.y ?? 'null'}, ${lastAccel.z ?? 'null'}` : 'null'}
+            </Text>
+            <Text size="xs" c="gray.4">
+              Request fn: {String(typeof (DeviceMotionEvent as unknown as { requestPermission?: () => void })?.requestPermission === 'function')}/{String(typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => void })?.requestPermission === 'function')}
+            </Text>
+            <Button size="xs" variant="light" onClick={runSensorTest}>
+              Sensor test
+            </Button>
+          </Stack>
+        </Paper>
+      )}
+
       {/* Compass Rose Overlay (visible in 3D mode) */}
       {is3DMode && compassHeading !== null && (
-        <CompassRose heading={compassHeading} />
+        <CompassRose />
       )}
 
       {/* Geolocation Button (center only, no tracking) */}
