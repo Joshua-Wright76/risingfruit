@@ -234,7 +234,6 @@ function createLocationCache(): globalThis.Map<number, Location> {
 
 export function ForagingMap() {
   const showCompassDebug = useMemo(() => {
-    if (import.meta.env.DEV) return true;
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).has('debugCompass');
   }, []);
@@ -278,6 +277,7 @@ export function ForagingMap() {
   const [lastAlpha, setLastAlpha] = useState<number | null>(null);
   const [lastAccel, setLastAccel] = useState<{ x: number | null; y: number | null; z: number | null } | null>(null);
   const [mapBearing, setMapBearing] = useState<number | null>(null);
+  const [dismissedCompassPrompt, setDismissedCompassPrompt] = useState(false);
   
   // 3D mode location tracking
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -526,7 +526,8 @@ export function ForagingMap() {
     if (!map) return;
 
     // Request motion/orientation permission while user gesture is active (iOS requirement).
-    void startCompass();
+    // Await so the permission prompt is not preempted by geolocation.
+    await startCompass();
 
     // Check permission state first
     const permissionState = await checkLocationPermission();
@@ -598,7 +599,8 @@ export function ForagingMap() {
 
     if (!is3DMode) {
       // Request motion/orientation permission while user gesture is active (iOS requirement).
-      void startCompass();
+      // Await so the permission prompt is not preempted by geolocation.
+      await startCompass();
 
       // Check if geolocation is available
       if (!navigator.geolocation) {
@@ -719,6 +721,12 @@ export function ForagingMap() {
       duration: 300,
     });
   }, [is3DMode, userLocation]);
+
+  useEffect(() => {
+    if (!is3DMode) {
+      setDismissedCompassPrompt(false);
+    }
+  }, [is3DMode]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -1203,6 +1211,65 @@ export function ForagingMap() {
             <Button size="xs" variant="light" onClick={runSensorTest}>
               Sensor test
             </Button>
+          </Stack>
+        </Paper>
+      )}
+
+      {is3DMode
+        && compassHeading === null
+        && !compassListenerActive
+        && !dismissedCompassPrompt
+        && (orientationPermission === 'unknown'
+          || orientationPermission === 'denied'
+          || motionPermission === 'unknown'
+          || motionPermission === 'denied') && (
+        <Paper
+          pos="absolute"
+          bottom={140}
+          left="50%"
+          px={16}
+          py={12}
+          radius="lg"
+          shadow="lg"
+          style={{
+            transform: 'translateX(-50%)',
+            zIndex: 1001,
+            backgroundColor: 'rgba(23, 23, 23, 0.95)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid var(--mantine-color-surface-7)',
+            width: 'calc(100% - 48px)',
+            maxWidth: 360,
+          }}
+        >
+          <Stack gap={8}>
+            <Text size="sm" fw={600} c="gray.1">Enable Compass</Text>
+            <Text size="xs" c="gray.4">
+              Motion access is needed to rotate the map with your phone.
+            </Text>
+            {orientationPermission === 'denied' || motionPermission === 'denied' ? (
+              <Text size="xs" c="gray.5">
+                Motion access is blocked. Enable it in your browser or device settings.
+              </Text>
+            ) : null}
+            <Group justify="space-between" gap={12}>
+              <Button
+                variant="subtle"
+                color="gray"
+                size="xs"
+                onClick={() => setDismissedCompassPrompt(true)}
+              >
+                Not Now
+              </Button>
+              <Button
+                variant="filled"
+                color="primary"
+                size="xs"
+                onClick={() => void startCompass()}
+              >
+                Enable Compass
+              </Button>
+            </Group>
           </Stack>
         </Paper>
       )}
