@@ -1,12 +1,13 @@
-import { test, fastTest, expect } from './fixtures/test-fixtures';
+import { fastTest, expect } from './fixtures/test-fixtures';
 
-test.describe('Filter Panel', () => {
+// All filter tests use fastTest since they're UI-only tests that don't need API data
+fastTest.describe('Filter Panel', () => {
   fastTest('should display filter toggle button', async ({ mapPage, page }) => {
     const filterToggle = page.locator('button').filter({ hasText: 'Filters' });
     await expect(filterToggle).toBeVisible();
   });
 
-  test('should expand filter panel when clicking toggle', async ({ mapPage, page }) => {
+  fastTest('should expand filter panel when clicking toggle', async ({ mapPage, page }) => {
     // Click to expand filters
     const filterToggle = page.locator('text=Filters');
     await filterToggle.click();
@@ -20,7 +21,7 @@ test.describe('Filter Panel', () => {
     await expect(seasonFilter).toBeVisible();
   });
 
-  test('should show season filter option', async ({ mapPage, page }) => {
+  fastTest('should show season filter option', async ({ mapPage, page }) => {
     // Expand filters
     const filterToggle = page.locator('button').filter({ hasText: 'Filters' });
     await filterToggle.click();
@@ -33,7 +34,7 @@ test.describe('Filter Panel', () => {
     await expect(inSeasonButton).toBeVisible();
   });
 
-  test('should toggle season filter when clicking', async ({ mapPage, page }) => {
+  fastTest('should toggle season filter when clicking', async ({ mapPage, page }) => {
     // Expand filters
     const filterToggle = page.locator('text=Filters');
     await filterToggle.click();
@@ -54,7 +55,7 @@ test.describe('Filter Panel', () => {
     await expect(badge).toHaveText('1');
   });
 
-  test('should show reset filters button when filters are active', async ({ mapPage, page }) => {
+  fastTest('should show reset filters button when filters are active', async ({ mapPage, page }) => {
     // Expand filters
     const filterToggle = page.locator('text=Filters');
     await filterToggle.click();
@@ -69,7 +70,7 @@ test.describe('Filter Panel', () => {
     await expect(resetButton).toBeVisible();
   });
 
-  test('should clear all filters when clicking reset button', async ({ mapPage, page }) => {
+  fastTest('should clear all filters when clicking reset button', async ({ mapPage, page }) => {
     // Expand filters
     const filterToggle = page.locator('text=Filters');
     await filterToggle.click();
@@ -93,7 +94,7 @@ test.describe('Filter Panel', () => {
     await expect(resetButton).not.toBeVisible();
   });
 
-  test('should collapse filter panel when clicking toggle again', async ({ mapPage, page }) => {
+  fastTest('should collapse filter panel when clicking toggle again', async ({ mapPage, page }) => {
     // Expand filters
     const filterToggle = page.locator('button').filter({ hasText: 'Filters' });
     await filterToggle.click();
@@ -109,7 +110,7 @@ test.describe('Filter Panel', () => {
     await expect(seasonLabel).not.toBeVisible();
   });
 
-  test('should show filter count badge when season filter is active', async ({ mapPage, page }) => {
+  fastTest('should show filter count badge when season filter is active', async ({ mapPage, page }) => {
     // Expand filters
     const filterToggle = page.locator('text=Filters');
     await filterToggle.click();
