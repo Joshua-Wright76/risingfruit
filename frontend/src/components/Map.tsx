@@ -316,14 +316,18 @@ export function ForagingMap() {
     }
 
     // iOS 13+ requires permission request (motion + orientation).
-    const DME = DeviceMotionEvent as typeof DeviceMotionEvent & {
-      requestPermission?: () => Promise<'granted' | 'denied'>;
-    };
-    const DOE = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
-      requestPermission?: () => Promise<'granted' | 'denied'>;
-    };
+    const DME = typeof DeviceMotionEvent !== 'undefined'
+      ? (DeviceMotionEvent as typeof DeviceMotionEvent & {
+          requestPermission?: () => Promise<'granted' | 'denied'>;
+        })
+      : undefined;
+    const DOE = typeof DeviceOrientationEvent !== 'undefined'
+      ? (DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+          requestPermission?: () => Promise<'granted' | 'denied'>;
+        })
+      : undefined;
     
-    if (typeof DME.requestPermission === 'function') {
+    if (DME && typeof DME.requestPermission === 'function') {
       try {
         const permission = await DME.requestPermission();
         setMotionPermission(permission);
@@ -340,7 +344,7 @@ export function ForagingMap() {
       setMotionPermission('not_required');
     }
 
-    if (typeof DOE.requestPermission === 'function') {
+    if (DOE && typeof DOE.requestPermission === 'function') {
       try {
         const permission = await DOE.requestPermission();
         setOrientationPermission(permission);
@@ -656,6 +660,11 @@ export function ForagingMap() {
   const runSensorTest = useCallback(() => {
     void startCompass();
   }, [startCompass]);
+
+  const supportsMotionPermissionRequest = typeof DeviceMotionEvent !== 'undefined'
+    && typeof (DeviceMotionEvent as unknown as { requestPermission?: () => void })?.requestPermission === 'function';
+  const supportsOrientationPermissionRequest = typeof DeviceOrientationEvent !== 'undefined'
+    && typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => void })?.requestPermission === 'function';
 
   // Update map bearing when compass heading changes
   useEffect(() => {
@@ -1049,7 +1058,7 @@ export function ForagingMap() {
               Accel: {lastAccel ? `${lastAccel.x ?? 'null'}, ${lastAccel.y ?? 'null'}, ${lastAccel.z ?? 'null'}` : 'null'}
             </Text>
             <Text size="xs" c="gray.4">
-              Request fn: {String(typeof (DeviceMotionEvent as unknown as { requestPermission?: () => void })?.requestPermission === 'function')}/{String(typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => void })?.requestPermission === 'function')}
+              Request fn: {String(supportsMotionPermissionRequest)}/{String(supportsOrientationPermissionRequest)}
             </Text>
             <Button size="xs" variant="light" onClick={runSensorTest}>
               Sensor test
