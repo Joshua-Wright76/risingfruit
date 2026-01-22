@@ -36,6 +36,8 @@ export async function getLocations(
     limit?: number;
     offset?: number;
     verified_only?: boolean;
+    center_lat?: number;
+    center_lng?: number;
   }
 ): Promise<LocationsResponse> {
   const params = new URLSearchParams({
@@ -56,6 +58,12 @@ export async function getLocations(
   }
   if (options?.verified_only) {
     params.set('verified_only', 'true');
+  }
+  if (options?.center_lat !== undefined) {
+    params.set('center_lat', options.center_lat.toString());
+  }
+  if (options?.center_lng !== undefined) {
+    params.set('center_lng', options.center_lng.toString());
   }
 
   return fetchJson(`${API_BASE_URL}/api/locations?${params}`);

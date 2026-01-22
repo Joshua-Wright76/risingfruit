@@ -38,6 +38,7 @@ export interface PlantTypeDetail extends PlantType {
 
 export interface LocationsResponse {
   count: number;
+  total: number;
   locations: Location[];
 }
 

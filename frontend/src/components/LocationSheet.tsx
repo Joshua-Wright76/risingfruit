@@ -1,8 +1,8 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Paper, Text, Loader, Center, Button, Group, Stack, SimpleGrid, Badge, UnstyledButton } from '@mantine/core';
-import { X, Navigation, Calendar, Lock, Leaf, ExternalLink, Share2, Check, Copy } from 'lucide-react';
+import { X, Navigation, Calendar, Lock, Leaf, ExternalLink } from 'lucide-react';
 import { getLocation } from '../lib/api';
 import { getFallbackSeason, formatFallbackSeason } from '../lib/fruitSeasons';
 import type { LocationDetail } from '../types/location';
@@ -180,34 +180,6 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
 
 function LocationContent({ location }: { location: LocationDetail }) {
   const primaryType = location.types[0];
-  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
-
-  const handleShare = useCallback(async () => {
-    const shareData = {
-      title: primaryType?.en_name || 'Foraging Location',
-      text: location.description || `Found on Rising Fruit`,
-      url: `${window.location.origin}?location=${location.id}`,
-    };
-
-    if (navigator.share && navigator.canShare?.(shareData)) {
-      try {
-        await navigator.share(shareData);
-        setShareStatus('shared');
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          console.error('Share failed:', err);
-        }
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(shareData.url);
-        setShareStatus('copied');
-      } catch (err) {
-        console.error('Copy failed:', err);
-      }
-    }
-    setTimeout(() => setShareStatus('idle'), 2000);
-  }, [location, primaryType]);
   
   return (
     <Stack gap={20}>
@@ -256,16 +228,6 @@ function LocationContent({ location }: { location: LocationDetail }) {
             </Text>
           )}
         </Box>
-        <UnstyledButton
-          onClick={handleShare}
-          p={8}
-          style={{ flexShrink: 0, borderRadius: 8 }}
-          aria-label="Share location"
-        >
-          {shareStatus === 'idle' && <Share2 size={20} style={{ color: 'var(--mantine-color-gray-4)' }} />}
-          {shareStatus === 'copied' && <Copy size={20} style={{ color: 'var(--mantine-color-primary-4)' }} />}
-          {shareStatus === 'shared' && <Check size={20} style={{ color: 'var(--mantine-color-primary-4)' }} />}
-        </UnstyledButton>
       </Group>
 
       {/* Description */}

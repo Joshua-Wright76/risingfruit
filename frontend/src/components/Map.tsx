@@ -218,6 +218,20 @@ const unclusteredPointFallbackLayer: LayerProps = {
   },
 };
 
+// Zoom-adaptive limit calculation
+function getZoomAdaptiveLimit(zoom: number): number {
+  if (zoom >= 16) return 2000;  // Street level
+  if (zoom >= 14) return 1500;  // Neighborhood
+  if (zoom >= 12) return 1000;  // District
+  if (zoom >= 10) return 500;   // City
+  return 300;                   // Regional
+}
+
+// Create a location cache map
+function createLocationCache(): globalThis.Map<number, Location> {
+  return new globalThis.Map();
+}
+
 export function ForagingMap() {
   const showCompassDebug = useMemo(() => {
     if (import.meta.env.DEV) return true;
@@ -226,6 +240,8 @@ export function ForagingMap() {
   }, []);
   const mapRef = useRef<MapRef>(null);
   const [bounds, setBounds] = useState<BoundingBox | null>(null);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(INITIAL_VIEW.zoom);
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
   const [selectedTypes, setSelectedTypes] = useState<number[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -233,6 +249,17 @@ export function ForagingMap() {
   const [filters, setFilters] = useState<FilterState>({
     inSeasonOnly: false,
   });
+
+  // Location cache for accumulating locations across viewports
+  const locationCacheRef = useRef(createLocationCache());
+  // Key to track when cache should be invalidated (filter changes)
+  const cacheInvalidationKeyRef = useRef<string>('');
+  // Counter to trigger re-renders when cache updates
+  const [cacheVersion, setCacheVersion] = useState(0);
+  // Background loading state
+  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
+  const [backgroundLoadOffset, setBackgroundLoadOffset] = useState(0);
+  const [totalInBounds, setTotalInBounds] = useState<number | null>(null);
   
   // 3D compass mode state
   const [is3DMode, setIs3DMode] = useState(false);
@@ -715,15 +742,50 @@ export function ForagingMap() {
     };
   }, []);
 
+  // Calculate cache invalidation key (changes when filters change)
+  const cacheKey = useMemo(
+    () => JSON.stringify({ types: selectedTypes, filters }),
+    [selectedTypes, filters]
+  );
+
+  // Clear cache when filters change
+  useEffect(() => {
+    if (cacheKey !== cacheInvalidationKeyRef.current) {
+      locationCacheRef.current.clear();
+      cacheInvalidationKeyRef.current = cacheKey;
+      setCacheVersion(0);
+    }
+  }, [cacheKey]);
+
+  // Calculate zoom-adaptive limit
+  const queryLimit = useMemo(() => getZoomAdaptiveLimit(zoomLevel), [zoomLevel]);
+
   // Query locations when bounds or filters change
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['locations', bounds, selectedTypes, filters],
-    queryFn: () => {
+    queryKey: ['locations', bounds, selectedTypes, filters, mapCenter, queryLimit],
+    queryFn: async () => {
       if (!bounds) return null;
-      return getLocations(bounds, {
-        limit: 1000,
+      const result = await getLocations(bounds, {
+        limit: queryLimit,
         types: selectedTypes.length > 0 ? selectedTypes : undefined,
+        center_lat: mapCenter?.lat,
+        center_lng: mapCenter?.lng,
       });
+
+      // Update total count
+      setTotalInBounds(result.total);
+
+      // Merge new locations into cache
+      const prevSize = locationCacheRef.current.size;
+      for (const loc of result.locations) {
+        locationCacheRef.current.set(loc.id, loc);
+      }
+      // Trigger re-render if cache changed
+      if (locationCacheRef.current.size !== prevSize) {
+        setCacheVersion((v) => v + 1);
+      }
+
+      return result;
     },
     enabled: !!bounds,
     staleTime: 30000, // Cache for 30s
@@ -731,7 +793,7 @@ export function ForagingMap() {
     retry: 2,
     select: (data) => {
       if (!data || !filters.inSeasonOnly) return data;
-      
+
       // Client-side season filtering
       const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
       const months = [
@@ -743,10 +805,10 @@ export function ForagingMap() {
       const filteredLocations = data.locations.filter((loc) => {
         // If no season info, include it
         if (!loc.season_start && !loc.season_stop) return true;
-        
+
         const startIndex = loc.season_start ? months.indexOf(loc.season_start) : 0;
         const stopIndex = loc.season_stop ? months.indexOf(loc.season_stop) : 11;
-        
+
         // Handle wrap-around seasons (e.g., Nov-Feb)
         if (startIndex <= stopIndex) {
           return currentMonthIndex >= startIndex && currentMonthIndex <= stopIndex;
@@ -757,12 +819,74 @@ export function ForagingMap() {
 
       return {
         count: filteredLocations.length,
+        total: data.total,
         locations: filteredLocations,
       };
     },
   });
 
-  // Update bounds on map move
+  // Background progressive loading when total > loaded
+  useEffect(() => {
+    if (!data || !bounds || !mapCenter) return;
+    if (isLoading) return;
+
+    const loadedCount = data.count;
+    const total = data.total;
+
+    // If we have more to load and haven't started background loading yet
+    if (total > loadedCount && backgroundLoadOffset === 0) {
+      // Start background loading after a short delay
+      const timer = setTimeout(() => {
+        setBackgroundLoadOffset(loadedCount);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [data, bounds, mapCenter, isLoading, backgroundLoadOffset]);
+
+  // Background fetch for additional pages
+  useEffect(() => {
+    if (!bounds || !mapCenter || backgroundLoadOffset === 0) return;
+    if (!data || data.total <= backgroundLoadOffset) return;
+
+    const fetchMoreLocations = async () => {
+      setIsBackgroundLoading(true);
+      try {
+        const result = await getLocations(bounds, {
+          limit: queryLimit,
+          offset: backgroundLoadOffset,
+          types: selectedTypes.length > 0 ? selectedTypes : undefined,
+          center_lat: mapCenter.lat,
+          center_lng: mapCenter.lng,
+        });
+
+        // Merge new locations into cache
+        const prevSize = locationCacheRef.current.size;
+        for (const loc of result.locations) {
+          locationCacheRef.current.set(loc.id, loc);
+        }
+        // Trigger re-render if cache changed
+        if (locationCacheRef.current.size !== prevSize) {
+          setCacheVersion((v) => v + 1);
+        }
+
+        // If there are more, continue loading
+        if (result.count > 0 && backgroundLoadOffset + result.count < result.total) {
+          setBackgroundLoadOffset((prev) => prev + result.count);
+        } else {
+          setBackgroundLoadOffset(0); // Done loading
+        }
+      } catch (err) {
+        console.warn('Background location fetch failed:', err);
+        setBackgroundLoadOffset(0); // Stop on error
+      } finally {
+        setIsBackgroundLoading(false);
+      }
+    };
+
+    fetchMoreLocations();
+  }, [bounds, mapCenter, backgroundLoadOffset, queryLimit, selectedTypes, data]);
+
+  // Update bounds, center, and zoom on map move
   const handleMoveEnd = useCallback((evt: ViewStateChangeEvent) => {
     const map = evt.target;
     const mapBounds = map.getBounds();
@@ -773,6 +897,11 @@ export function ForagingMap() {
         ne_lat: mapBounds.getNorth(),
         ne_lng: mapBounds.getEast(),
       });
+      const center = map.getCenter();
+      setMapCenter({ lat: center.lat, lng: center.lng });
+      setZoomLevel(map.getZoom());
+      // Reset background loading when viewport changes
+      setBackgroundLoadOffset(0);
     }
   }, []);
 
@@ -868,8 +997,11 @@ export function ForagingMap() {
           ne_lat: mapBounds.getNorth(),
           ne_lng: mapBounds.getEast(),
         });
+        const center = map.getCenter();
+        setMapCenter({ lat: center.lat, lng: center.lng });
+        setZoomLevel(map.getZoom());
       }
-      
+
       // Expose map for E2E testing (always expose in development)
       // @ts-expect-error - exposing for E2E tests
       window.__risingfruit_map = map;
@@ -936,13 +1068,21 @@ export function ForagingMap() {
     setFilters({ inSeasonOnly: false });
   }, []);
 
+  // Get all cached locations as array for rendering
+  // This includes locations from the current query + any previously loaded from background fetches
+  const cachedLocations = useMemo(() => {
+    return Array.from(locationCacheRef.current.values());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheVersion]);
+
   // Memoize GeoJSON to prevent unnecessary re-renders during pan/zoom
+  // Uses cached locations which accumulate across background loads
   const geojson = useMemo(
-    () => data?.locations ? locationsToGeoJSON(data.locations) : null,
-    [data?.locations]
+    () => cachedLocations.length > 0 ? locationsToGeoJSON(cachedLocations) : null,
+    [cachedLocations]
   );
   const hasActiveFilters = selectedTypes.length > 0 || filters.inSeasonOnly;
-  const showEmptyState = mapLoaded && !isLoading && !error && data?.count === 0;
+  const showEmptyState = mapLoaded && !isLoading && !error && cachedLocations.length === 0 && data?.count === 0;
 
   // Interactive layers for click handling
   const interactiveLayerIds = iconsLoaded 
@@ -1178,8 +1318,8 @@ export function ForagingMap() {
         </Paper>
       )}
 
-      {/* Location count */}
-      {data && !isLoading && data.count > 0 && (
+      {/* Location count with pagination status */}
+      {data && !isLoading && (cachedLocations.length > 0 || data.count > 0) && (
         <Paper
           pos="absolute"
           bottom={96}
@@ -1197,9 +1337,14 @@ export function ForagingMap() {
             pointerEvents: 'none',
           }}
         >
-          <Text size="sm" fw={500} c="gray.2">
-            {data.count.toLocaleString()} locations
-          </Text>
+          <Group gap={8}>
+            {isBackgroundLoading && <Loader size={12} color="primary.5" />}
+            <Text size="sm" fw={500} c="gray.2">
+              {totalInBounds !== null && totalInBounds > cachedLocations.length
+                ? `${cachedLocations.length.toLocaleString()} / ${totalInBounds.toLocaleString()} locations`
+                : `${cachedLocations.length.toLocaleString()} locations`}
+            </Text>
+          </Group>
         </Paper>
       )}
 
@@ -1270,7 +1415,8 @@ export function ForagingMap() {
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
             border: '1px solid var(--mantine-color-surface-6)',
-            maxWidth: 320,
+            width: 'calc(100% - 32px)',
+            maxWidth: 400,
           }}
         >
           <Stack align="center" gap={16}>

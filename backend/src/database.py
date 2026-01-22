@@ -100,11 +100,13 @@ async def get_locations_in_bounds(
     type_ids: Optional[list[int]] = None,
     limit: int = 1000,
     offset: int = 0,
-    include_unverified: bool = True
+    include_unverified: bool = True,
+    center_lat: Optional[float] = None,
+    center_lng: Optional[float] = None,
 ) -> list[dict]:
     """
     Get locations within a bounding box using R-tree index.
-    
+
     Args:
         sw_lat: Southwest latitude
         sw_lng: Southwest longitude
@@ -114,13 +116,15 @@ async def get_locations_in_bounds(
         limit: Max results (default 1000)
         offset: Pagination offset
         include_unverified: Include unverified locations
-    
+        center_lat: Optional center latitude for distance-based ordering
+        center_lng: Optional center longitude for distance-based ordering
+
     Returns:
         List of location dicts
     """
     # Base query using R-tree for spatial filtering
     query = """
-        SELECT 
+        SELECT
             l.id, l.lat, l.lng, l.description, l.access,
             l.season_start, l.season_stop, l.author,
             l.unverified, l.created_at, l.updated_at,
@@ -133,28 +137,95 @@ async def get_locations_in_bounds(
           AND l.hidden = 0
     """
     params: list = [ne_lat, sw_lat, ne_lng, sw_lng]
-    
+
     if not include_unverified:
         query += " AND l.unverified = 0"
-    
+
     if type_ids:
         placeholders = ",".join("?" * len(type_ids))
         query += f" AND lt.type_id IN ({placeholders})"
         params.extend(type_ids)
-    
-    query += " GROUP BY l.id ORDER BY l.id LIMIT ? OFFSET ?"
+
+    # Order by distance from center if provided, otherwise by id
+    query += " GROUP BY l.id"
+    if center_lat is not None and center_lng is not None:
+        # Squared Euclidean distance (fast, accurate enough for viewport sorting)
+        query += " ORDER BY ((l.lat - ?) * (l.lat - ?) + (l.lng - ?) * (l.lng - ?))"
+        params.extend([center_lat, center_lat, center_lng, center_lng])
+    else:
+        query += " ORDER BY l.id"
+    query += " LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     
     rows = await db.fetch_all(query, tuple(params))
-    
+
     # Parse type_ids string to list
     for row in rows:
         if row.get("type_ids"):
             row["type_ids"] = [int(tid) for tid in row["type_ids"].split(",")]
         else:
             row["type_ids"] = []
-    
+
     return rows
+
+
+async def get_locations_count_in_bounds(
+    db: Database,
+    sw_lat: float,
+    sw_lng: float,
+    ne_lat: float,
+    ne_lng: float,
+    type_ids: Optional[list[int]] = None,
+    include_unverified: bool = True,
+) -> int:
+    """
+    Count locations within a bounding box using R-tree index.
+
+    Args:
+        sw_lat: Southwest latitude
+        sw_lng: Southwest longitude
+        ne_lat: Northeast latitude
+        ne_lng: Northeast longitude
+        type_ids: Optional filter by type IDs
+        include_unverified: Include unverified locations
+
+    Returns:
+        Total count of matching locations
+    """
+    # Count query using R-tree for spatial filtering
+    if type_ids:
+        # Need to join with location_types to filter by type
+        query = """
+            SELECT COUNT(DISTINCT l.id)
+            FROM locations l
+            INNER JOIN locations_rtree r ON l.id = r.id
+            LEFT JOIN location_types lt ON l.id = lt.location_id
+            WHERE r.min_lat <= ? AND r.max_lat >= ?
+              AND r.min_lng <= ? AND r.max_lng >= ?
+              AND l.hidden = 0
+        """
+    else:
+        # Simpler query without type join
+        query = """
+            SELECT COUNT(*)
+            FROM locations l
+            INNER JOIN locations_rtree r ON l.id = r.id
+            WHERE r.min_lat <= ? AND r.max_lat >= ?
+              AND r.min_lng <= ? AND r.max_lng >= ?
+              AND l.hidden = 0
+        """
+    params: list = [ne_lat, sw_lat, ne_lng, sw_lng]
+
+    if not include_unverified:
+        query += " AND l.unverified = 0"
+
+    if type_ids:
+        placeholders = ",".join("?" * len(type_ids))
+        query += f" AND lt.type_id IN ({placeholders})"
+        params.extend(type_ids)
+
+    count = await db.fetch_value(query, tuple(params))
+    return count or 0
 
 
 async def get_location_by_id(db: Database, location_id: int) -> Optional[dict]:

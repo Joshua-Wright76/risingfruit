@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from .database import (
     db,
     get_locations_in_bounds,
+    get_locations_count_in_bounds,
     get_location_by_id,
     get_all_types,
     get_type_by_id,
@@ -76,6 +77,7 @@ class TypeDetail(TypeSummary):
 class LocationsResponse(BaseModel):
     """Response for locations list endpoint."""
     count: int
+    total: int
     locations: list[LocationSummary]
 
 
@@ -166,11 +168,14 @@ async def list_locations(
     limit: int = Query(1000, description="Max results", ge=1, le=5000),
     offset: int = Query(0, description="Pagination offset", ge=0),
     verified_only: bool = Query(False, description="Only return verified locations"),
+    center_lat: Optional[float] = Query(None, description="Center latitude for distance-based ordering", ge=-90, le=90),
+    center_lng: Optional[float] = Query(None, description="Center longitude for distance-based ordering", ge=-180, le=180),
 ):
     """
     Get locations within a bounding box.
-    
+
     Uses R-tree spatial index for efficient queries.
+    Optionally orders results by distance from a center point.
     """
     # Parse type IDs if provided
     type_ids = None
@@ -179,7 +184,10 @@ async def list_locations(
             type_ids = [int(tid.strip()) for tid in types.split(",") if tid.strip()]
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid type IDs format")
-    
+
+    include_unverified = not verified_only
+
+    # Get locations and total count in parallel
     locations = await get_locations_in_bounds(
         db,
         sw_lat=sw_lat,
@@ -189,11 +197,24 @@ async def list_locations(
         type_ids=type_ids,
         limit=limit,
         offset=offset,
-        include_unverified=not verified_only,
+        include_unverified=include_unverified,
+        center_lat=center_lat,
+        center_lng=center_lng,
     )
-    
+
+    total = await get_locations_count_in_bounds(
+        db,
+        sw_lat=sw_lat,
+        sw_lng=sw_lng,
+        ne_lat=ne_lat,
+        ne_lng=ne_lng,
+        type_ids=type_ids,
+        include_unverified=include_unverified,
+    )
+
     return LocationsResponse(
         count=len(locations),
+        total=total,
         locations=[LocationSummary(**loc) for loc in locations]
     )
 
