@@ -14,8 +14,6 @@ export class MapPage {
   readonly locationSheet: Locator;
   readonly loadingIndicator: Locator;
   readonly locationCount: Locator;
-  readonly zoomInButton: Locator;
-  readonly zoomOutButton: Locator;
   readonly geolocateButton: Locator;
 
   constructor(page: Page) {
@@ -27,8 +25,6 @@ export class MapPage {
     this.locationSheet = page.locator('[data-testid="location-sheet"]');
     this.loadingIndicator = page.locator('text=Loading...');
     this.locationCount = page.locator('text=/\\d+ locations/');
-    this.zoomInButton = page.locator('.mapboxgl-ctrl-zoom-in');
-    this.zoomOutButton = page.locator('.mapboxgl-ctrl-zoom-out');
     this.geolocateButton = page.locator('[data-testid="geolocate-button"]');
   }
 
@@ -62,18 +58,6 @@ export class MapPage {
 
   async clickOnMap(x: number, y: number) {
     await this.mapCanvas.click({ position: { x, y } });
-  }
-
-  async zoomIn() {
-    await this.zoomInButton.click();
-    // Wait for zoom to complete by checking map is still interactive
-    await expect(this.zoomInButton).toBeEnabled();
-  }
-
-  async zoomOut() {
-    await this.zoomOutButton.click();
-    // Wait for zoom to complete by checking map is still interactive
-    await expect(this.zoomOutButton).toBeEnabled();
   }
 
   async search(query: string) {

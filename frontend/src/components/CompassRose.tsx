@@ -1,7 +1,7 @@
 /**
- * Large semi-transparent compass rose overlay
+ * Semi-transparent compass rose overlay
  * Pokemon Go style aesthetic
- * Fixed north-up overlay (map rotates underneath)
+ * Tilted to appear flat on the map surface in 3D mode
  */
 export function CompassRose() {
   return (
@@ -13,24 +13,29 @@ export function CompassRose() {
         transform: 'translate(-50%, -50%)',
         zIndex: 10,
         pointerEvents: 'none',
+        // 3D perspective to make it look flat on the tilted map
+        perspective: '500px',
       }}
     >
       {/* Outer glow ring */}
       <div
         style={{
-          width: 220,
-          height: 220,
+          width: 110,
+          height: 110,
           borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(74, 222, 128, 0.15) 0%, transparent 70%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          // Tilt to match map's 60° pitch - rotateX tilts it back into the scene
+          transform: 'rotateX(60deg)',
+          transformStyle: 'preserve-3d',
         }}
       >
         {/* Main compass container */}
         <svg
-          width="200"
-          height="200"
+          width="100"
+          height="100"
           viewBox="0 0 200 200"
           style={{
             filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))',

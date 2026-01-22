@@ -13,25 +13,6 @@ fastTest.describe('Map Loading and Display', () => {
     expect(box!.height).toBeGreaterThan(0);
   });
 
-  fastTest('should have zoom controls visible', async ({ mapPage }) => {
-    await expect(mapPage.zoomInButton).toBeVisible();
-    await expect(mapPage.zoomOutButton).toBeVisible();
-  });
-
-  fastTest('should zoom in when clicking zoom in button', async ({ mapPage }) => {
-    // Zoom in multiple times
-    await mapPage.zoomIn();
-    await mapPage.zoomIn();
-    await mapPage.zoomIn();
-
-    // Wait for map to settle
-    await mapPage.waitForMapIdle();
-
-    // Verify zoom controls are still functional
-    await expect(mapPage.zoomInButton).toBeEnabled();
-    await expect(mapPage.zoomOutButton).toBeEnabled();
-  });
-
   fastTest('should have geolocate button visible', async ({ mapPage }) => {
     await expect(mapPage.geolocateButton).toBeVisible();
   });

@@ -255,8 +255,6 @@ export function ForagingMap() {
   const cacheInvalidationKeyRef = useRef<string>('');
   // Counter to trigger re-renders when cache updates
   const [cacheVersion, setCacheVersion] = useState(0);
-  // Background loading state
-  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
   const [backgroundLoadOffset, setBackgroundLoadOffset] = useState(0);
   const [totalInBounds, setTotalInBounds] = useState<number | null>(null);
   
@@ -857,7 +855,6 @@ export function ForagingMap() {
     if (!data || data.total <= backgroundLoadOffset) return;
 
     const fetchMoreLocations = async () => {
-      setIsBackgroundLoading(true);
       try {
         const result = await getLocations(bounds, {
           limit: queryLimit,
@@ -886,8 +883,6 @@ export function ForagingMap() {
       } catch (err) {
         console.warn('Background location fetch failed:', err);
         setBackgroundLoadOffset(0); // Stop on error
-      } finally {
-        setIsBackgroundLoading(false);
       }
     };
 
@@ -1146,8 +1141,6 @@ export function ForagingMap() {
         reuseMaps
         style={{ width: '100%', height: '100%' }}
       >
-        <NavigationControl position="bottom-right" showCompass={false} />
-
         {geojson && (
           <Source
             id="locations"
@@ -1283,9 +1276,9 @@ export function ForagingMap() {
       <Tooltip label="Center on my location" position="left" withArrow>
         <ActionIcon
           pos="absolute"
-          bottom={220}
-          right={10}
-          size={29}
+          bottom={80}
+          right={16}
+          size={45}
           variant="filled"
           onClick={handleCenterOnLocation}
           aria-label="Center on my location"
@@ -1294,11 +1287,11 @@ export function ForagingMap() {
             zIndex: 1,
             backgroundColor: '#fff',
             color: '#333',
-            borderRadius: 4,
+            borderRadius: 8,
             boxShadow: '0 0 0 2px rgba(0,0,0,0.1)',
           }}
         >
-          <Crosshair size={18} />
+          <Crosshair size={24} />
         </ActionIcon>
       </Tooltip>
 
@@ -1310,9 +1303,9 @@ export function ForagingMap() {
       >
         <ActionIcon
           pos="absolute"
-          bottom={180}
-          right={10}
-          size={29}
+          bottom={24}
+          right={16}
+          size={45}
           variant="filled"
           onClick={toggle3DMode}
           aria-label={is3DMode ? 'Exit 3D mode' : 'Enter 3D compass mode'}
@@ -1320,13 +1313,13 @@ export function ForagingMap() {
             zIndex: 1,
             backgroundColor: is3DMode ? 'var(--mantine-color-primary-6)' : '#fff',
             color: is3DMode ? '#fff' : '#333',
-            borderRadius: 4,
+            borderRadius: 8,
             boxShadow: '0 0 0 2px rgba(0,0,0,0.1)',
             transition: 'background-color 0.2s, color 0.2s',
           }}
         >
           <Navigation2
-            size={18}
+            size={24}
             style={{
               transform: is3DMode && compassHeading !== null
                 ? `rotate(${compassHeading}deg)`
@@ -1405,7 +1398,6 @@ export function ForagingMap() {
           }}
         >
           <Group gap={8}>
-            {isBackgroundLoading && <Loader size={12} color="primary.5" />}
             <Text size="sm" fw={500} c="gray.2">
               {totalInBounds !== null && totalInBounds > cachedLocations.length
                 ? `${cachedLocations.length.toLocaleString()} / ${totalInBounds.toLocaleString()} locations`
