@@ -95,12 +95,12 @@ const MONTHS = [
 /**
  * Check if a season range includes the current month
  */
-function isMonthInSeason(startMonth: string, stopMonth: string): boolean {
+export function isMonthInSeason(startMonth: string, stopMonth: string): boolean {
   const currentMonthIndex = new Date().getMonth();
   const startIndex = MONTHS.indexOf(startMonth);
   const stopIndex = MONTHS.indexOf(stopMonth);
   
-  if (startIndex === -1 || stopIndex === -1) return false;
+  if (startIndex === -1 || stopIndex === -1) return true; // Default to in-season if month is invalid
   
   // Handle wrap-around seasons (e.g., Nov-Feb)
   if (startIndex <= stopIndex) {
@@ -108,6 +108,29 @@ function isMonthInSeason(startMonth: string, stopMonth: string): boolean {
   } else {
     return currentMonthIndex >= startIndex || currentMonthIndex <= stopIndex;
   }
+}
+
+/**
+ * Check if a location is currently in season.
+ * Priority: 
+ * 1. Explicit season_start/season_stop from the location record
+ * 2. Fallback peak season data based on the fruit type icon
+ */
+export function isLocationInSeason(loc: { 
+  season_start?: string | null; 
+  season_stop?: string | null; 
+  type_ids: number[];
+}): boolean {
+  // 1. Check explicit season info if available
+  if (loc.season_start || loc.season_stop) {
+    return isMonthInSeason(
+      loc.season_start || 'January', 
+      loc.season_stop || 'December'
+    );
+  }
+
+  // 2. Fallback to type-based season data
+  return areTypeIdsInSeason(loc.type_ids);
 }
 
 /**
@@ -120,16 +143,32 @@ export function isIconInSeason(iconName: string): boolean {
 }
 
 /**
- * Check if any of the given type IDs are currently in season
- * Uses the fallback season data based on fruit type
+ * Check if any of the given type IDs are currently in season.
+ * Returns true if:
+ * 1. Any type is explicitly known to be in season right now.
+ * 2. Any type has NO known season data (we assume it's "possibly" in season).
+ * Returns false only if ALL types are known and ALL are out of season.
  */
 export function areTypeIdsInSeason(typeIds: number[]): boolean {
+  if (typeIds.length === 0) return true;
+
+  let allKnownAndOutOfSeason = true;
+  let foundAnyKnownType = false;
+
   for (const typeId of typeIds) {
     const iconName = typeIdToIcon[typeId];
-    if (iconName && isIconInSeason(iconName)) {
-      return true;
+    if (iconName && fruitSeasons[iconName]) {
+      foundAnyKnownType = true;
+      if (isIconInSeason(iconName)) {
+        return true; // Found one that IS in season
+      }
+    } else {
+      // Unknown type or no season data for it - we can't say it's out of season
+      allKnownAndOutOfSeason = false;
     }
   }
-  return false;
+
+  if (!foundAnyKnownType) return true; // No season data for any types
+  return !allKnownAndOutOfSeason;
 }
 

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Box, Paper, Text, Loader, Center, Button, Group, Stack, SimpleGrid, Badge, UnstyledButton } from '@mantine/core';
 import { X, Navigation, Calendar, Lock, Leaf, ExternalLink } from 'lucide-react';
 import { getLocation } from '../lib/api';
-import { getFallbackSeason, formatFallbackSeason } from '../lib/fruitSeasons';
+import { getFallbackSeason, formatFallbackSeason, isLocationInSeason } from '../lib/fruitSeasons';
 import type { LocationDetail } from '../types/location';
 
 interface LocationSheetProps {
@@ -180,11 +180,12 @@ export function LocationSheet({ locationId, onClose }: LocationSheetProps) {
 
 function LocationContent({ location }: { location: LocationDetail }) {
   const primaryType = location.types[0];
+  const isInSeason = isLocationInSeason(location);
   
   return (
     <Stack gap={20}>
       {/* Header */}
-      <Group align="flex-start" gap={12}>
+      <Group align="flex-start" gap={12} wrap="nowrap">
         <Box
           style={{
             flexShrink: 0,
@@ -200,18 +201,31 @@ function LocationContent({ location }: { location: LocationDetail }) {
           <Leaf size={24} style={{ color: 'var(--mantine-color-primary-4)' }} />
         </Box>
         <Box style={{ flex: 1, minWidth: 0 }}>
-          <Text
-            size="lg"
-            fw={600}
-            c="gray.0"
-            style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {primaryType?.en_name || 'Unknown Type'}
-          </Text>
+          <Group gap={8} align="center">
+            <Text
+              size="lg"
+              fw={600}
+              c="gray.0"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {primaryType?.en_name || 'Unknown Type'}
+            </Text>
+            {isInSeason && (
+              <Badge 
+                variant="filled" 
+                color="green.8" 
+                size="sm" 
+                radius="sm"
+                styles={{ root: { textTransform: 'none' } }}
+              >
+                In Season
+              </Badge>
+            )}
+          </Group>
           {primaryType?.scientific_name && (
             <Text
               size="sm"

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, {
   Layer,
-  NavigationControl,
   Source,
   type MapRef,
   type ViewStateChangeEvent,
@@ -23,7 +22,7 @@ import { EmptyState } from './EmptyState';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { markerIcons } from './MarkerIcons';
 import { fruitIcons, fruitIconsInSeason, getIconForTypes, defaultIcon, defaultIconInSeason, ICON_SIZE, ICON_PIXEL_RATIO } from './FruitIcons';
-import { isIconInSeason, areTypeIdsInSeason } from '../lib/fruitSeasons';
+import { isLocationInSeason } from '../lib/fruitSeasons';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -44,10 +43,7 @@ function locationsToGeoJSON(locations: Location[]): FeatureCollection<Point> {
       // Determine which icon to use based on type IDs
       const fruitIcon = getIconForTypes(loc.type_ids);
       // Check if the fruit is currently in season (for green border)
-      // For fruit icons, use the icon's season; for default, use type-based season lookup
-      const fruitInSeason = fruitIcon 
-        ? isIconInSeason(fruitIcon) 
-        : areTypeIdsInSeason(loc.type_ids);
+      const fruitInSeason = isLocationInSeason(loc);
       return {
         type: 'Feature' as const,
         id: loc.id,
@@ -801,30 +797,11 @@ export function ForagingMap() {
       if (!data || !filters.inSeasonOnly) return data;
 
       // Client-side season filtering
-      const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
-      const months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ];
-      const currentMonthIndex = months.indexOf(currentMonth);
-
-      const filteredLocations = data.locations.filter((loc) => {
-        // If no season info, include it
-        if (!loc.season_start && !loc.season_stop) return true;
-
-        const startIndex = loc.season_start ? months.indexOf(loc.season_start) : 0;
-        const stopIndex = loc.season_stop ? months.indexOf(loc.season_stop) : 11;
-
-        // Handle wrap-around seasons (e.g., Nov-Feb)
-        if (startIndex <= stopIndex) {
-          return currentMonthIndex >= startIndex && currentMonthIndex <= stopIndex;
-        } else {
-          return currentMonthIndex >= startIndex || currentMonthIndex <= stopIndex;
-        }
-      });
+      const filteredLocations = data.locations.filter(isLocationInSeason);
 
       return {
         count: filteredLocations.length,
+        rawCount: data.locations.length,
         total: data.total,
         locations: filteredLocations,
       };
@@ -836,7 +813,8 @@ export function ForagingMap() {
     if (!data || !bounds || !mapCenter) return;
     if (isLoading) return;
 
-    const loadedCount = data.count;
+    // Use rawCount for background loading triggers to avoid redundant fetches when filtering
+    const loadedCount = filters.inSeasonOnly ? (data as any).rawCount : data.count;
     const total = data.total;
 
     // If we have more to load and haven't started background loading yet
@@ -847,7 +825,7 @@ export function ForagingMap() {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [data, bounds, mapCenter, isLoading, backgroundLoadOffset]);
+  }, [data, bounds, mapCenter, isLoading, backgroundLoadOffset, filters.inSeasonOnly]);
 
   // Background fetch for additional pages
   useEffect(() => {
@@ -1074,9 +1052,13 @@ export function ForagingMap() {
   // Get all cached locations as array for rendering
   // This includes locations from the current query + any previously loaded from background fetches
   const cachedLocations = useMemo(() => {
-    return Array.from(locationCacheRef.current.values());
+    const allCached = Array.from(locationCacheRef.current.values());
+    if (filters.inSeasonOnly) {
+      return allCached.filter(isLocationInSeason);
+    }
+    return allCached;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cacheVersion]);
+  }, [cacheVersion, filters.inSeasonOnly]);
 
   // Memoize GeoJSON to prevent unnecessary re-renders during pan/zoom
   // Uses cached locations which accumulate across background loads
